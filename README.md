@@ -1,0 +1,1 @@
+El link donde se encuentra el video explicando las diferentes pruebas de los endpoints con Postman se encuentra en esta liga de Drive: https://drive.google.com/file/d/1nf5yK5B21EGwNlne6fQfNRqQ-xI63-3N/view?usp=sharing

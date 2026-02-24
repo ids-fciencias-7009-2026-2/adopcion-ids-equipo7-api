@@ -1,8 +1,12 @@
 package com.equipo7.proyectoAdopcion.controllers
 
+
 import com.equipo7.proyectoAdopcion.domain.Usuario
 import com.equipo7.proyectoAdopcion.dto.request.LoginRequest
 import com.equipo7.proyectoAdopcion.dto.response.LogoutResponse
+import com.equipo7.proyectoAdopcion.dto.request.CreateUsuarioRequest
+import com.equipo7.proyectoAdopcion.dto.request.UpdateUsuarioRequest
+import com.equipo7.proyectoAdopcion.domain.toUsuario
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity

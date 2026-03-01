@@ -9,6 +9,6 @@ data class Usuario(
     var nombre: String,
     var email: String,
     var codigoPostal: String,
-    var password: String? = null
+    var password: String? = null,
     var token: String? = null
 )

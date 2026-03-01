@@ -112,11 +112,11 @@ class UsuarioController {
 
        // Usuario simulado obtenido de la base de datos.
        val usuarioFake = Usuario(
-           "456",
-           "usuario2",
-           "usuario2@ciencias.unam.mx",
-           "08200",
-           "Test123."
+           id = "456",
+           nombre = "usuario2",
+           email = "usuario2@ciencias.unam.mx",
+           codigoPostal = "08200",
+           password = "Test123."
        )
        logger.info("try make login with: $loginRequest")
        return if (usuarioFake.password == loginRequest.password) {

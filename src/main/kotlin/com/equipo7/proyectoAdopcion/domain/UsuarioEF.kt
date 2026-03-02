@@ -58,7 +58,7 @@ fun CreateUsuarioRequest.toUsuario(): Usuario {
         id = id,
         nombre = this.nombre,
         email = this.email,
-        codigoPostal = this.codigoPostal
+        codigoPostal = this.codigoPostal,
         password = this.password 
     )
 }

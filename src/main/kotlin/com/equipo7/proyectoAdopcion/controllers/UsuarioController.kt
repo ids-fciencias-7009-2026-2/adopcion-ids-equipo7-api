@@ -38,13 +38,14 @@ class UsuarioController {
      * URL: http://localhost:8080/usuarios/me
      * Metodo: GET
      *
-     * @return ResponseEntity con un objeto Usuario y código HTTP 200 (OK).
+     * @return ResponseEntity con un objeto Usuario y código HTTP 200 (OK). ResponseEntity<Any> con el usuario encontrado sin contraseña
      */
     @GetMapping("/me")
-    fun retrieveUsuario(@RequestParam email: String): ResponseEntity<Usuario> {
+    fun retrieveUsuario(@RequestParam email: String): ResponseEntity<Any> {
       val usuario = usuarioService.findByEmail(email)
       return if (usuario != null) {
-        ResponseEntity.ok(usuario)
+        //se oculta la contraseña en la respuesta para noexponer datos sensibles del usuario
+        ResponseEntity.ok(usuario.copy(password = null))
       } else {
         ResponseEntity.notFound().build()
       }
@@ -58,29 +59,28 @@ class UsuarioController {
      *
      * URL:    http://localhost:8080/usuarios/register
      * Metodo: POST
+     * Si el registro es exitoso, devuelve el usuario sin contraseña.
      *
      * @param createUsuarioRequest DTO que representa el body del request.
-     * @return ResponseEntity con el usuario creado y código HTTP 200 (OK).
+     * @return ResponseEntity con el usuario creado sin contraseña, o un mensaje de error si el correo ya existe, y código HTTP 200 (OK).
      */
     @PostMapping("/register")
     fun agregaUsuario(
         @RequestBody createUsuarioRequest: CreateUsuarioRequest
-    ): ResponseEntity<Usuario> {
-
-        /**
-         *   Se espera un JSON de la forma:
-         *   {
-         *      "nombre": "Nombre",
-         *      "email": "alguien@ciencias.unam.mx",
-         *      "codigoPostal": "00000",
-         *      "password": "myPassword"
-         *  }
-         */
-        // Conversión de DTO a objeto de dominio usando una extension function
+    ): ResponseEntity<Any> {
+        //Conversion de DTO a objeto de dominio usando una estension function
         val usuarioParaAgregar = createUsuarioRequest.toUsuario()
-        usuarioService.addNewUsuario(usuarioParaAgregar)
-        // En esta etapa no se guarda en BD, solo se simula la creación
-        return ResponseEntity.ok(usuarioParaAgregar)
+        //Logica del registro, validación y hash de contraseña
+        val usuarioGuardado = usuarioService.addNewUsuario(usuarioParaAgregar)
+
+    return if (usuarioGuardado != null) {
+        //No se expone la contraseña ni su hash en la respuesta HTTP
+        ResponseEntity.ok(usuarioGuardado.copy(password = null))
+    } else {
+        //Si el correo ya existe, evita registrps duplicados
+        ResponseEntity.status(409).body(mapOf("error" to "El correo ya está registrado"))
+    }
+
     }
 
     /**
@@ -126,7 +126,7 @@ class UsuarioController {
       logger.info("Cierre de sesión solicitado para el usuario ID: $id")
       val logoutResponse = LogoutResponse(
           userId = id,
-          timestamp = LocalDateTime.now().toString()
+          logoutDateTime = LocalDateTime.now().toString()
           )
       return ResponseEntity.ok(logoutResponse)
       }
@@ -150,12 +150,12 @@ class UsuarioController {
         @RequestBody updateUsuarioRequest: UpdateUsuarioRequest
     ): ResponseEntity<Any> {
     logger.info("Solicitud de actualización para el usuario: $email")
-        // Delegamos la búsqueda y actualización al Service (Persona 2)
         val usuarioActualizado = usuarioService.updateUsuario(email, updateUsuarioRequest)
 
         return if (usuarioActualizado != null) {
+            //Aunque se actulice la contraseña, no se devuelve en la respuesta
             logger.info("Usuario $email actualizado con éxito")
-            ResponseEntity.ok(usuarioActualizado)
+            ResponseEntity.ok(usuarioActualizado.copy(password = null))
         } else {
             logger.error("No se pudo encontrar al usuario $email para actualizar")
             ResponseEntity.status(404).body(mapOf("error" to "Usuario no encontrado"))

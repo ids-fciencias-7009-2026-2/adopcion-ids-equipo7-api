@@ -1,10 +1,11 @@
 {
   "info": {
-    "_postman_id": "c0038aaf-3f71-4b0d-9e7f-349aee1eae2e",
-    "name": "Iteración 1 - Equipo7 - Usuarios (QA) [ALL PASS - runner safe]",
+    "_postman_id": "6c8eeb59-5e2c-413e-933c-249ea5683d0d",
+    "name": "practica1-equipo7",
+    "description": "Colección para probar endpoints de usuarios con autenticación por token en header Authorization.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "52672078",
-    "_collection_link": "https://go.postman.co/collection/52672078-c0038aaf-3f71-4b0d-9e7f-349aee1eae2e?source=collection_link"
+    "_collection_link": "https://go.postman.co/collection/52672078-6c8eeb59-5e2c-413e-933c-249ea5683d0d?source=collection_link"
   },
   "item": [
     {
@@ -15,16 +16,16 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "// Genera datos únicos para que el registro NO choque con registros previos",
-              "const ts = Date.now();",
-              "pm.environment.set('nombre_ok', 'QA User');",
-              "pm.environment.set('email_ok', `qa_${ts}@ciencias.unam.mx`);",
-              "pm.environment.set('codigoPostal_ok', '04510');",
-              "pm.environment.set('password_ok', 'Test123.');",
-              "// Un email que NO exista (para probar 404 en /me)",
-              "pm.environment.set('email_missing', `qa_missing_${ts}@ciencias.unam.mx`);",
-              "// Un id que NO exista (para probar 404 en /logout)",
-              "pm.environment.set('id_missing', `id_missing_${ts}`);"
+              "if (!pm.environment.get(\"ts\")) {",
+              "  pm.environment.set(\"ts\", Date.now().toString());",
+              "}",
+              "const ts = pm.environment.get(\"ts\");",
+              "pm.environment.set(\"email_ok\", `qa_${ts}@ciencias.unam.mx`);",
+              "pm.environment.set(\"password_ok\", \"Test123.\");",
+              "pm.environment.set(\"nombre_ok\", \"QA Usuario\");",
+              "pm.environment.set(\"cp_ok\", \"04510\");",
+              "pm.environment.set(\"token_invalid\", \"token_invalido_\" + ts);",
+              "pm.environment.set(\"email_missing\", `missing_${ts}@ciencias.unam.mx`);"
             ]
           }
         },
@@ -33,14 +34,16 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
-              "pm.test('Tiene id (string)', function () { pm.expect(body.id).to.be.a('string'); });",
-              "pm.test('Tiene email (string)', function () { pm.expect(body.email).to.be.a('string'); });",
-              "pm.test('Email coincide', function () { pm.expect(body.email).to.eql(pm.environment.get('email_ok')); });",
-              "pm.test('No expone password', function () { pm.expect(body.password === null || body.password === undefined).to.be.true; });",
-              "// Guardamos el id para logout",
-              "pm.environment.set('userId', body.id);"
+              "pm.test(\"Tiene id y email\", function () {",
+              "  pm.expect(body).to.have.property(\"id\");",
+              "  pm.expect(body.email).to.eql(pm.environment.get(\"email_ok\"));",
+              "});",
+              "pm.test(\"No expone password\", function () {",
+              "  pm.expect(body.password === null || body.password === undefined).to.be.true;",
+              "});",
+              "pm.environment.set(\"userId_ok\", body.id);"
             ]
           }
         }
@@ -55,7 +58,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"nombre\": \"{{nombre_ok}}\",\n  \"email\": \"{{email_ok}}\",\n  \"codigoPostal\": \"{{codigoPostal_ok}}\",\n  \"password\": \"{{password_ok}}\"\n}",
+          "raw": "{\n  \"nombre\": \"{{nombre_ok}}\",\n  \"email\": \"{{email_ok}}\",\n  \"codigoPostal\": \"{{cp_ok}}\",\n  \"password\": \"{{password_ok}}\"\n}\n",
           "options": {
             "raw": {
               "language": "json"
@@ -83,11 +86,10 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Status 409', function () { pm.response.to.have.status(409); });",
+              "pm.test(\"Status 409\", function () { pm.response.to.have.status(409); });",
               "const body = pm.response.json();",
-              "pm.test('Mensaje de error esperado', function () {",
-              "  const msg = (body && body.error) ? String(body.error) : '';",
-              "  pm.expect(msg.toLowerCase()).to.include('registrad');",
+              "pm.test(\"Mensaje de error esperado (es)\", function () {",
+              "  pm.expect(body.error).to.eql(\"El correo ya está registrado\");",
               "});"
             ]
           }
@@ -103,7 +105,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"nombre\": \"{{nombre_ok}}\",\n  \"email\": \"{{email_ok}}\",\n  \"codigoPostal\": \"{{codigoPostal_ok}}\",\n  \"password\": \"{{password_ok}}\"\n}",
+          "raw": "{\n  \"nombre\": \"{{nombre_ok}}\",\n  \"email\": \"{{email_ok}}\",\n  \"codigoPostal\": \"{{cp_ok}}\",\n  \"password\": \"{{password_ok}}\"\n}\n",
           "options": {
             "raw": {
               "language": "json"
@@ -131,12 +133,15 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
-              "pm.test('Respuesta contiene message', function () { pm.expect(body.message).to.eql('Welcome'); });",
-              "pm.test('Respuesta contiene userId', function () { pm.expect(body.userId).to.be.a('string'); });",
-              "// Aseguramos que el userId sea el mismo que el del registro",
-              "pm.test('userId coincide con registro', function () { pm.expect(body.userId).to.eql(pm.environment.get('userId')); });"
+              "pm.test(\"Respuesta contiene message, userId, token\", function () {",
+              "  pm.expect(body.message).to.eql(\"Welcome\");",
+              "  pm.expect(body).to.have.property(\"userId\");",
+              "  pm.expect(body).to.have.property(\"token\");",
+              "});",
+              "pm.environment.set(\"token_ok\", body.token);",
+              "pm.environment.set(\"userId_ok\", body.userId);"
             ]
           }
         }
@@ -151,7 +156,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"{{email_ok}}\",\n  \"password\": \"{{password_ok}}\"\n}",
+          "raw": "{\n  \"email\": \"{{email_ok}}\",\n  \"password\": \"{{password_ok}}\"\n}\n",
           "options": {
             "raw": {
               "language": "json"
@@ -179,9 +184,11 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Status 401', function () { pm.response.to.have.status(401); });",
+              "pm.test(\"Status 401\", function () { pm.response.to.have.status(401); });",
               "const body = pm.response.json();",
-              "pm.test('Error Invalid Credentials', function () { pm.expect(body.error).to.eql('Invalid Credentials'); });"
+              "pm.test(\"Error Invalid Credentials\", function () {",
+              "  pm.expect(body.error).to.eql(\"Invalid Credentials\");",
+              "});"
             ]
           }
         }
@@ -196,7 +203,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"{{email_ok}}\",\n  \"password\": \"mala\"\n}",
+          "raw": "{\n  \"email\": \"{{email_ok}}\",\n  \"password\": \"mala\"\n}\n",
           "options": {
             "raw": {
               "language": "json"
@@ -224,10 +231,144 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
-              "pm.test('Email coincide', function () { pm.expect(body.email).to.eql(pm.environment.get('email_ok')); });",
-              "pm.test('No expone password', function () { pm.expect(body.password === null || body.password === undefined).to.be.true; });"
+              "pm.test(\"Email coincide\", function () {",
+              "  pm.expect(body.email).to.eql(pm.environment.get(\"email_ok\"));",
+              "});",
+              "pm.test(\"No expone password\", function () {",
+              "  pm.expect(body.password === null || body.password === undefined).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{token_ok}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/usuarios/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "usuarios",
+            "me"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6) PUT - /usuarios/{email} (OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test(\"Actualiza nombre/codigoPostal\", function () {",
+              "  pm.expect(body.nombre).to.eql(\"QA Usuario Editado\");",
+              "  pm.expect(body.codigoPostal).to.eql(\"11111\");",
+              "});",
+              "pm.test(\"Email se mantiene\", function () {",
+              "  pm.expect(body.email).to.eql(pm.environment.get(\"email_ok\"));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"QA Usuario Editado\",\n  \"email\": \"{{email_ok}}\",\n  \"codigoPostal\": \"11111\"\n}\n",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/usuarios/{{email_ok}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "usuarios",
+            "{{email_ok}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7) POST - /usuarios/logout (OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test(\"userId coincide\", function () {",
+              "  pm.expect(body.userId).to.eql(pm.environment.get(\"userId_ok\"));",
+              "});",
+              "pm.test(\"logoutDateTime existe\", function () {",
+              "  pm.expect(body).to.have.property(\"logoutDateTime\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{token_ok}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/usuarios/logout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "usuarios",
+            "logout"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "8) GET - /usuarios/me (sin token -> 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 401\", function () { pm.response.to.have.status(401); });",
+              "const body = pm.response.json();",
+              "pm.test(\"Error por token faltante\", function () {",
+              "  pm.expect(body).to.have.property(\"error\");",
+              "});"
             ]
           }
         }
@@ -236,89 +377,30 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{baseUrl}}/usuarios/me?email={{email_ok}}",
+          "raw": "{{baseUrl}}/usuarios/me",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
             "usuarios",
             "me"
-          ],
-          "query": [
-            {
-              "key": "email",
-              "value": "{{email_ok}}"
-            }
           ]
         }
       },
       "response": []
     },
     {
-      "name": "6) GET - /usuarios/me (No existe -> 404)",
+      "name": "9) POST - /usuarios/logout (token inválido -> 401)",
       "event": [
         {
           "listen": "test",
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Status 404', function () { pm.response.to.have.status(404); });",
-              "",
-              "// NOTA: este endpoint puede responder 404 SIN cuerpo (ResponseEntity.notFound()).",
-              "// Si intentamos pm.response.json() con cuerpo vacío, el Runner se detiene.",
-              "let body = null;",
-              "try { body = pm.response.json(); } catch (e) { body = null; }",
-              "",
-              "pm.test('Respuesta vacía o mensaje de no encontrado', function () {",
-              "  const text = (pm.response.text() || '').trim().toLowerCase();",
-              "  if (body && body.error) {",
-              "    pm.expect(String(body.error).toLowerCase()).to.include('not');",
-              "  } else {",
-              "    // normalmente será vacío",
-              "    pm.expect(text.length).to.be.within(0, 50);",
-              "  }",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/usuarios/me?email={{email_missing}}",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "usuarios",
-            "me"
-          ],
-          "query": [
-            {
-              "key": "email",
-              "value": "{{email_missing}}"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "7) POST - /usuarios/logout/{id} (OK)",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Status 401\", function () { pm.response.to.have.status(401); });",
               "const body = pm.response.json();",
-              "pm.test('userId coincide', function () { pm.expect(body.userId).to.eql(pm.environment.get('userId')); });",
-              "pm.test('logoutDateTime existe', function () {",
-              "  pm.expect(body).to.have.property('logoutDateTime');",
-              "  pm.expect(String(body.logoutDateTime)).to.be.a('string');",
-              "  pm.expect(String(body.logoutDateTime).length).to.be.above(0);",
+              "pm.test(\"Token inválido\", function () {",
+              "  pm.expect(body.error).to.eql(\"Token inválido\");",
               "});"
             ]
           }
@@ -326,53 +408,20 @@
       ],
       "request": {
         "method": "POST",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/usuarios/logout/{{userId}}",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "usuarios",
-            "logout",
-            "{{userId}}"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "8) POST - /usuarios/logout/{id} (No existe -> 200 simulado)",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-              "const body = pm.response.json();",
-              "pm.test('userId coincide con id_missing', function () { pm.expect(body.userId).to.eql(pm.environment.get('id_missing')); });",
-              "pm.test('logoutDateTime existe', function () {",
-              "  pm.expect(body).to.have.property('logoutDateTime');",
-              "  pm.expect(String(body.logoutDateTime)).to.be.a('string');",
-              "  pm.expect(String(body.logoutDateTime).length).to.be.above(0);",
-              "});"
-            ]
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{token_invalid}}"
           }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [],
+        ],
         "url": {
-          "raw": "{{baseUrl}}/usuarios/logout/{{id_missing}}",
+          "raw": "{{baseUrl}}/usuarios/logout",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
             "usuarios",
-            "logout",
-            "{{id_missing}}"
+            "logout"
           ]
         }
       },

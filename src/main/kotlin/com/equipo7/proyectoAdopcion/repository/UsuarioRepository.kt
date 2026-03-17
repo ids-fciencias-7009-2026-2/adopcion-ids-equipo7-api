@@ -12,5 +12,11 @@ interface UsuarioRepository : JpaRepository<UsuarioEntity, String> {
      */
     fun findByEmail(email: String): UsuarioEntity?
 
+    /**
+     * Busca un usuario mediante su token de sesión activo.
+     * Requerido por el UsuarioService para validar la sesión en /me y /logout.
+     */
+    fun findByToken(token: String): UsuarioEntity?
+
     // El metodo .save() ya viene heredado de JpaRepository
 }

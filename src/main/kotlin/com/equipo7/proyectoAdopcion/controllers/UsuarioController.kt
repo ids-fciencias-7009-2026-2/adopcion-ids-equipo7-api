@@ -4,6 +4,7 @@ package com.equipo7.proyectoAdopcion.controllers
 import com.equipo7.proyectoAdopcion.domain.Usuario
 import com.equipo7.proyectoAdopcion.dto.request.LoginRequest
 import com.equipo7.proyectoAdopcion.dto.response.LogoutResponse
+import com.equipo7.proyectoAdopcion.dto.response.LoginResponse
 import com.equipo7.proyectoAdopcion.dto.request.CreateUsuarioRequest
 import com.equipo7.proyectoAdopcion.dto.request.UpdateUsuarioRequest
 import com.equipo7.proyectoAdopcion.domain.toUsuario
@@ -39,15 +40,21 @@ class UsuarioController {
      * Metodo: GET
      *
      * @return ResponseEntity con un objeto Usuario y código HTTP 200 (OK). ResponseEntity<Any> con el usuario encontrado sin contraseña
+     *         HTTP 401 si el usuario no cuenta con un token activo.
      */
     @GetMapping("/me")
-    fun retrieveUsuario(@RequestParam email: String): ResponseEntity<Any> {
-      val usuario = usuarioService.findByEmail(email)
+    fun retrieveUsuario(
+        @RequestHeader("Authorization", required = false) token: String?
+    ): ResponseEntity<Any> {
+      if (token.isNullOrBlank()) {
+          return ResponseEntity.status(401).body(mapOf("error" to "Token no proporcionado"))
+      }
+      val usuario = usuarioService.findByToken(token)
       return if (usuario != null) {
         //se oculta la contraseña en la respuesta para noexponer datos sensibles del usuario
         ResponseEntity.ok(usuario.copy(password = null))
       } else {
-        ResponseEntity.notFound().build()
+          ResponseEntity.status(401).body(mapOf("error" to "Token no encontrado. Inicie sesion."))
       }
     }
 
@@ -99,10 +106,11 @@ class UsuarioController {
    ): ResponseEntity<Any> {
        logger.info("try make login with: $loginRequest")
        val authenticatedUsuario = usuarioService.authenticate(loginRequest)
-       return if (authenticatedUsuario != null) {
+       return if (authenticatedUsuario != null && authenticatedUsuario.token != null){
            logger.info("Login successful")
            // HTTP 200 → autenticación exitosa
-           ResponseEntity.ok(mapOf("message" to "Welcome", "userId" to authenticatedUsuario.id))
+           ResponseEntity.ok(mapOf("message" to "Welcome", "userId" to authenticatedUsuario.id,
+               "token" to authenticatedUsuario.token))
        } else {
            logger.error("Login failed for: $loginRequest")
            // HTTP 401 → Unauthorized (credenciales inválidas)
@@ -121,11 +129,19 @@ class UsuarioController {
        *
        * @return ResponseEntity con información del logout.
        */
-      @PostMapping("/logout/{id}")
-      fun logout(@PathVariable id: String): ResponseEntity<Any> {
-      logger.info("Cierre de sesión solicitado para el usuario ID: $id")
+      @PostMapping("/logout")
+      fun logout(@RequestHeader("Authorization", required = false) token: String?): ResponseEntity<Any> {
+            if (token.isNullOrBlank()) {
+                return ResponseEntity.status(401).body(mapOf("error" to "Token no proporcionado"))
+            }
+            // Si el usuario es nulo (no se encuentra por token), mandamos error
+            val usuario = usuarioService.findByToken(token) ?: return ResponseEntity.status(401).body(mapOf("error" to "Token inválido"))
+            // De lo contrario, borramos el token y realizamos el logout
+            usuarioService.logout(token)
+            logger.info("Cierre de sesión solicitado para el usuario ID: ${usuario.id}")
+
       val logoutResponse = LogoutResponse(
-          userId = id,
+          userId = usuario.id,
           logoutDateTime = LocalDateTime.now().toString()
           )
       return ResponseEntity.ok(logoutResponse)

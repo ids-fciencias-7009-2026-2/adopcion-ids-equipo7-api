@@ -6,13 +6,17 @@ import com.equipo7.proyectoAdopcion.dto.request.UpdateUsuarioRequest
 import com.equipo7.proyectoAdopcion.repository.UsuarioRepository
 import com.equipo7.proyectoAdopcion.repository.toDomain
 import com.equipo7.proyectoAdopcion.repository.toEntity
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.security.MessageDigest
+import java.util.UUID
 
 @Service
 class UsuarioService(
     private val usuarioRepository: UsuarioRepository
 ) {
+
+    val logger = LoggerFactory.getLogger(UsuarioService::class.java)
 
     fun hashPassword(password: String): String {
         val bytes = MessageDigest
@@ -26,14 +30,33 @@ class UsuarioService(
         return entity?.toDomain()
     }
 
+    fun findByToken(token: String): Usuario? {
+        val entity = usuarioRepository.findByToken(token)
+        logger.info("Usuario exists: ${entity.toString()}")
+        return entity?.toDomain()
+    }
+
     fun authenticate(loginRequest: LoginRequest): Usuario? {
-        val usuario = findByEmail(loginRequest.email) ?: return null
-        val storedPassword = usuario.password ?: return null
+        val entity = usuarioRepository.findByEmail(loginRequest.email) ?: return null
+        val storedPassword = entity.password ?: return null
 
         return if (hashPassword(loginRequest.password) == storedPassword) {
-            usuario
+            // Generaramos token
+            val token = UUID.randomUUID().toString()
+            entity.token = token
+            // Guardar en base de datos el usuario actualizado con su nuevo token
+            val savedEntity = usuarioRepository.save(entity)
+            savedEntity.toDomain()
         } else {
             null
+        }
+    }
+
+    fun logout(token: String) {
+        val entity = usuarioRepository.findByToken(token)
+        if (entity != null) {
+            entity.token = null // Borramos el token
+            usuarioRepository.save(entity)
         }
     }
 

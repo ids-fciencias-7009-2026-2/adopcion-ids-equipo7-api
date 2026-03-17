@@ -12,16 +12,16 @@ class UsuarioEntity(
 
     @Id
     @Column(length = 50)
-    val id: String, // Clave primaria (PK) de tipo VARCHAR(50)
+    var id: String = "", // Clave primaria (PK) de tipo VARCHAR(50)
 
     @Column(nullable = false, length = 100)
-    var nombre: String,
+    var nombre: String = "",
 
     @Column(nullable = false, length = 100, unique = true)
-    var email: String,
+    var email: String = "",
 
     @Column(name = "codigo_postal", nullable = false, length = 10)
-    var codigoPostal: String,
+    var codigoPostal: String = "",
 
     @Column(length = 255)
     var password: String? = null, // Almacenado como hash para seguridad

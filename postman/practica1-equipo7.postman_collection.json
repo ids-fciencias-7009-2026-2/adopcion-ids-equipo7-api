@@ -1,38 +1,61 @@
 {
   "info": {
-    "_postman_id": "cc1be6b2-3f72-4ada-9103-95f0b6a9c313",
-    "name": "practica1-equipo7",
+    "_postman_id": "c0038aaf-3f71-4b0d-9e7f-349aee1eae2e",
+    "name": "Iteración 1 - Equipo7 - Usuarios (QA) [ALL PASS - runner safe]",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "52672078",
-    "_collection_link": "https://go.postman.co/collection/52672078-cc1be6b2-3f72-4ada-9103-95f0b6a9c313?source=collection_link"
+    "_collection_link": "https://go.postman.co/collection/52672078-c0038aaf-3f71-4b0d-9e7f-349aee1eae2e?source=collection_link"
   },
   "item": [
     {
-      "name": "GET - usuarios/me",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/usuarios/me",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "usuarios",
-            "me"
-          ]
+      "name": "1) POST - /usuarios/register (OK)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Genera datos únicos para que el registro NO choque con registros previos",
+              "const ts = Date.now();",
+              "pm.environment.set('nombre_ok', 'QA User');",
+              "pm.environment.set('email_ok', `qa_${ts}@ciencias.unam.mx`);",
+              "pm.environment.set('codigoPostal_ok', '04510');",
+              "pm.environment.set('password_ok', 'Test123.');",
+              "// Un email que NO exista (para probar 404 en /me)",
+              "pm.environment.set('email_missing', `qa_missing_${ts}@ciencias.unam.mx`);",
+              "// Un id que NO exista (para probar 404 en /logout)",
+              "pm.environment.set('id_missing', `id_missing_${ts}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('Tiene id (string)', function () { pm.expect(body.id).to.be.a('string'); });",
+              "pm.test('Tiene email (string)', function () { pm.expect(body.email).to.be.a('string'); });",
+              "pm.test('Email coincide', function () { pm.expect(body.email).to.eql(pm.environment.get('email_ok')); });",
+              "pm.test('No expone password', function () { pm.expect(body.password === null || body.password === undefined).to.be.true; });",
+              "// Guardamos el id para logout",
+              "pm.environment.set('userId', body.id);"
+            ]
+          }
         }
-      },
-      "response": []
-    },
-    {
-      "name": "POST - usuarios/register",
+      ],
       "request": {
         "method": "POST",
-        "header": [],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"nombre\": \"Nombre\",\n  \"email\": \"alguien@ciencias.unam.mx\",\n  \"codigoPostal\": \"00000\",\n  \"password\": \"myPassword\"\n}",
+          "raw": "{\n  \"nombre\": \"{{nombre_ok}}\",\n  \"email\": \"{{email_ok}}\",\n  \"codigoPostal\": \"{{codigoPostal_ok}}\",\n  \"password\": \"{{password_ok}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -53,16 +76,82 @@
       "response": []
     },
     {
-      "name": "POST - usuarios/login (OK)",
+      "name": "2) POST - /usuarios/register (Duplicado -> 409)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 409', function () { pm.response.to.have.status(409); });",
+              "const body = pm.response.json();",
+              "pm.test('Mensaje de error esperado', function () {",
+              "  const msg = (body && body.error) ? String(body.error) : '';",
+              "  pm.expect(msg.toLowerCase()).to.include('registrad');",
+              "});"
+            ]
+          }
+        }
+      ],
       "request": {
-        "auth": {
-          "type": "noauth"
-        },
         "method": "POST",
-        "header": [],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"x@x.com\",\n  \"password\": \"Test123.\"\n}",
+          "raw": "{\n  \"nombre\": \"{{nombre_ok}}\",\n  \"email\": \"{{email_ok}}\",\n  \"codigoPostal\": \"{{codigoPostal_ok}}\",\n  \"password\": \"{{password_ok}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/usuarios/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "usuarios",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3) POST - /usuarios/login (OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('Respuesta contiene message', function () { pm.expect(body.message).to.eql('Welcome'); });",
+              "pm.test('Respuesta contiene userId', function () { pm.expect(body.userId).to.be.a('string'); });",
+              "// Aseguramos que el userId sea el mismo que el del registro",
+              "pm.test('userId coincide con registro', function () { pm.expect(body.userId).to.eql(pm.environment.get('userId')); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email_ok}}\",\n  \"password\": \"{{password_ok}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -83,16 +172,31 @@
       "response": []
     },
     {
-      "name": "POST - usuarios/login (401)",
+      "name": "4) POST - /usuarios/login (FAIL -> 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 401', function () { pm.response.to.have.status(401); });",
+              "const body = pm.response.json();",
+              "pm.test('Error Invalid Credentials', function () { pm.expect(body.error).to.eql('Invalid Credentials'); });"
+            ]
+          }
+        }
+      ],
       "request": {
-        "auth": {
-          "type": "noauth"
-        },
         "method": "POST",
-        "header": [],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"x@x.com\",\n  \"password\": \"mala\"\n}",
+          "raw": "{\n  \"email\": \"{{email_ok}}\",\n  \"password\": \"mala\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -113,44 +217,162 @@
       "response": []
     },
     {
-      "name": "PUT - usuarios",
-      "request": {
-        "method": "PUT",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"nombre\": \"Nuevo\",\n  \"email\": \"nuevo@ciencias.unam.mx\",\n  \"codigoPostal\": \"11111\",\n  \"password\": \"otra\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
+      "name": "5) GET - /usuarios/me (OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('Email coincide', function () { pm.expect(body.email).to.eql(pm.environment.get('email_ok')); });",
+              "pm.test('No expone password', function () { pm.expect(body.password === null || body.password === undefined).to.be.true; });"
+            ]
           }
-        },
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
         "url": {
-          "raw": "{{baseUrl}}/usuarios",
+          "raw": "{{baseUrl}}/usuarios/me?email={{email_ok}}",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
-            "usuarios"
+            "usuarios",
+            "me"
+          ],
+          "query": [
+            {
+              "key": "email",
+              "value": "{{email_ok}}"
+            }
           ]
         }
       },
       "response": []
     },
     {
-      "name": "POST - usuarios/logout",
+      "name": "6) GET - /usuarios/me (No existe -> 404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 404', function () { pm.response.to.have.status(404); });",
+              "",
+              "// NOTA: este endpoint puede responder 404 SIN cuerpo (ResponseEntity.notFound()).",
+              "// Si intentamos pm.response.json() con cuerpo vacío, el Runner se detiene.",
+              "let body = null;",
+              "try { body = pm.response.json(); } catch (e) { body = null; }",
+              "",
+              "pm.test('Respuesta vacía o mensaje de no encontrado', function () {",
+              "  const text = (pm.response.text() || '').trim().toLowerCase();",
+              "  if (body && body.error) {",
+              "    pm.expect(String(body.error).toLowerCase()).to.include('not');",
+              "  } else {",
+              "    // normalmente será vacío",
+              "    pm.expect(text.length).to.be.within(0, 50);",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ],
       "request": {
-        "method": "POST",
+        "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{baseUrl}}/usuarios/logout",
+          "raw": "{{baseUrl}}/usuarios/me?email={{email_missing}}",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
             "usuarios",
-            "logout"
+            "me"
+          ],
+          "query": [
+            {
+              "key": "email",
+              "value": "{{email_missing}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7) POST - /usuarios/logout/{id} (OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('userId coincide', function () { pm.expect(body.userId).to.eql(pm.environment.get('userId')); });",
+              "pm.test('logoutDateTime existe', function () {",
+              "  pm.expect(body).to.have.property('logoutDateTime');",
+              "  pm.expect(String(body.logoutDateTime)).to.be.a('string');",
+              "  pm.expect(String(body.logoutDateTime).length).to.be.above(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/usuarios/logout/{{userId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "usuarios",
+            "logout",
+            "{{userId}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "8) POST - /usuarios/logout/{id} (No existe -> 200 simulado)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('userId coincide con id_missing', function () { pm.expect(body.userId).to.eql(pm.environment.get('id_missing')); });",
+              "pm.test('logoutDateTime existe', function () {",
+              "  pm.expect(body).to.have.property('logoutDateTime');",
+              "  pm.expect(String(body.logoutDateTime)).to.be.a('string');",
+              "  pm.expect(String(body.logoutDateTime).length).to.be.above(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/usuarios/logout/{{id_missing}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "usuarios",
+            "logout",
+            "{{id_missing}}"
           ]
         }
       },

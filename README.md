@@ -1,6 +1,7 @@
 # API Adopción — Equipo 7
 
 Este repositorio contiene el proyecto de API Spring Boot con Kotlin para el sistema de adopción de perritos.
+**Versión:** 1.0.0 (Iteración 1) - *Primera versión funcional del backend.*
 
 ---
 
@@ -18,6 +19,16 @@ Este repositorio contiene el proyecto de API Spring Boot con Kotlin para el sist
 - Maven Wrapper incluido (`./mvnw`)
 
 > **Convención del equipo:** PostgreSQL en **puerto 5432**.
+
+---
+
+## Iteración 1 - Backend funcional y Usuario
+En esta versión, la API gestiona el ciclo de vida de registro y autenticación de la entidad `Usuario` mediante tokens:
+* **Registro de Usuarios:** Creación y persistencia de cuentas con contraseñas cifradas.
+* **Inicio de sesión:** Validación de credenciales y generación de tokens.
+* **Consulta de infroamción:** Acceso seguro a la información del usuario que este autenticado.
+* **Cierre de sesión:** Invalidación del token activo.
+
 
 ---
 
@@ -60,9 +71,15 @@ sudo -u postgres psql -d adopcion -c "\dt"
 sudo -u postgres psql -d adopcion -c "\d usuario"
 ```
 
+## 4) Renovar permisos sobre la base de datos
+```bash
+# Si existen errores de permisos, otorgarlos nuevamente sobre los nuevos datos
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE adopcion TO equipo7;"
+```
+
 ---
 
-## 4) Crear archivo `.env` (este por convención NO se sube al repositorio)
+## 5) Crear archivo `.env` (este por convención NO se sube al repositorio)
 Crea un archivo `.env` en la raíz del proyecto (este archivo es ignorado por git).
 
 `.env` (ejemplo):
@@ -76,7 +93,7 @@ También existe `.env.example` como referencia de variables.
 
 ---
 
-## 5) Correr el proyecto
+## 6) Correr el proyecto
 ```bash
 ./mvnw clean test
 ./mvnw spring-boot:run
@@ -88,12 +105,16 @@ Si todo está correcto, Spring Boot debe iniciar sin errores de conexión y en c
 
 ---
 
-## Entregables Práctica 2 (en el repositorio)
+## Entregables
 Carpeta `database/`:
 - `usuario.sql` (script de creación de tabla)
+
+Carpeta `postman/`:
+- `practica1-equipo7.postman_collection.json` (colección automatizada para pruebas en Postman)
+
 ---
 
-## Tag de versión `0.0.1`
+## Creación del Tag `1.0.0`
 Cuando:
 - el proyecto levanta correctamente,
 - la conexión a la BD es exitosa,
@@ -105,7 +126,7 @@ crear el tag:
 ```bash
 git checkout main
 git pull origin main
-git tag 0.0.1
-git push origin 0.0.1
+git tag 1.0.0
+git push origin 1.0.0
 ```
 

@@ -4,11 +4,14 @@ package com.equipo7.proyectoAdopcion.controllers
 import com.equipo7.proyectoAdopcion.domain.Usuario
 import com.equipo7.proyectoAdopcion.dto.request.LoginRequest
 import com.equipo7.proyectoAdopcion.dto.response.LogoutResponse
+import com.equipo7.proyectoAdopcion.dto.response.LoginResponse
 import com.equipo7.proyectoAdopcion.dto.request.CreateUsuarioRequest
 import com.equipo7.proyectoAdopcion.dto.request.UpdateUsuarioRequest
 import com.equipo7.proyectoAdopcion.domain.toUsuario
+import com.equipo7.proyectoAdopcion.services.UsuarioService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.*
@@ -17,10 +20,11 @@ import java.time.LocalDateTime
 /**
  * Controlador para la gestión de usuarios del sistema de adopción.
  */
-@Controller
+@RestController
 @RequestMapping("/usuarios") // Prefijo base para todos los endpoints de este controlador
 class UsuarioController {
-
+    @Autowired
+    lateinit var usuarioService: UsuarioService
     /**
      * Logger para registrar eventos importantes del flujo de ejecución.
      *
@@ -32,29 +36,26 @@ class UsuarioController {
     /**
      * Endpoint para obtener la información del usuario actual.
      *
-     * Utiliza datos simulados (fake) para esta etapa de la practica.
-     *
      * URL: http://localhost:8080/usuarios/me
      * Metodo: GET
      *
-     * @return ResponseEntity con un objeto Usuario y código HTTP 200 (OK).
+     * @return ResponseEntity con un objeto Usuario y código HTTP 200 (OK). ResponseEntity<Any> con el usuario encontrado sin contraseña
+     *         HTTP 401 si el usuario no cuenta con un token activo.
      */
     @GetMapping("/me")
-    fun retrieveUsuario(): ResponseEntity<Usuario> {
-
-        // Simulación de un usuario registrado en la plataforma
-        // Se debe proporcionar como minimo esta información
-        val usuarioFake = Usuario(
-            id = "123",
-            nombre = "Usuario1",
-            email = "usuario1@ciencias.unam.mx",
-            codigoPostal = "04510"
-        )
-
-        logger.info("User found in database: ${usuarioFake.nombre}")
-
-        // Retorna HTTP 200 junto con el usuario encontrado
-        return ResponseEntity.ok(usuarioFake)
+    fun retrieveUsuario(
+        @RequestHeader("Authorization", required = false) token: String?
+    ): ResponseEntity<Any> {
+      if (token.isNullOrBlank()) {
+          return ResponseEntity.status(401).body(mapOf("error" to "Token no proporcionado"))
+      }
+      val usuario = usuarioService.findByToken(token)
+      return if (usuario != null) {
+        //se oculta la contraseña en la respuesta para noexponer datos sensibles del usuario
+        ResponseEntity.ok(usuario.copy(password = null))
+      } else {
+          ResponseEntity.status(401).body(mapOf("error" to "Token no encontrado. Inicie sesion."))
+      }
     }
 
     /**
@@ -65,38 +66,32 @@ class UsuarioController {
      *
      * URL:    http://localhost:8080/usuarios/register
      * Metodo: POST
+     * Si el registro es exitoso, devuelve el usuario sin contraseña.
      *
      * @param createUsuarioRequest DTO que representa el body del request.
-     * @return ResponseEntity con el usuario creado y código HTTP 200 (OK).
+     * @return ResponseEntity con el usuario creado sin contraseña, o un mensaje de error si el correo ya existe, y código HTTP 200 (OK).
      */
     @PostMapping("/register")
     fun agregaUsuario(
         @RequestBody createUsuarioRequest: CreateUsuarioRequest
-    ): ResponseEntity<Usuario> {
-
-        /**
-         *   Se espera un JSON de la forma:
-         *   {
-         *      "nombre": "Nombre",
-         *      "email": "alguien@ciencias.unam.mx",
-         *      "codigoPostal": "00000",
-         *      "password": "myPassword"
-         *  }
-         */
-        // Conversión de DTO a objeto de dominio usando una extension function
+    ): ResponseEntity<Any> {
+        //Conversion de DTO a objeto de dominio usando una estension function
         val usuarioParaAgregar = createUsuarioRequest.toUsuario()
+        //Logica del registro, validación y hash de contraseña
+        val usuarioGuardado = usuarioService.addNewUsuario(usuarioParaAgregar)
 
+    return if (usuarioGuardado != null) {
+        //No se expone la contraseña ni su hash en la respuesta HTTP
+        ResponseEntity.ok(usuarioGuardado.copy(password = null))
+    } else {
+        //Si el correo ya existe, evita registrps duplicados
+        ResponseEntity.status(409).body(mapOf("error" to "El correo ya está registrado"))
+    }
 
-        logger.info("Nuevo usuario agregado: $usuarioParaAgregar")
-
-        // En esta etapa no se guarda en BD, solo se simula la creación
-        return ResponseEntity.ok(usuarioParaAgregar)
     }
 
     /**
-    * Endpoint que simula el proceso de autenticación de un usuario.
-    *
-    * Recibe correo y contraseña y los compara contra un usuario ficticio.
+    * Endpoint que hace el proceso de autenticación del usuario
     *
     * URL:    http://localhost:8080/usuarios/login
     * Metodo: POST
@@ -109,20 +104,13 @@ class UsuarioController {
    fun login(
        @RequestBody loginRequest: LoginRequest
    ): ResponseEntity<Any> {
-
-       // Usuario simulado obtenido de la base de datos.
-       val usuarioFake = Usuario(
-           id = "456",
-           nombre = "usuario2",
-           email = "usuario2@ciencias.unam.mx",
-           codigoPostal = "08200",
-           password = "Test123."
-       )
        logger.info("try make login with: $loginRequest")
-       return if (usuarioFake.password == loginRequest.password) {
+       val authenticatedUsuario = usuarioService.authenticate(loginRequest)
+       return if (authenticatedUsuario != null && authenticatedUsuario.token != null){
            logger.info("Login successful")
            // HTTP 200 → autenticación exitosa
-           ResponseEntity.ok(mapOf("message" to "Welcome", "userId" to usuarioFake.id))
+           ResponseEntity.ok(mapOf("message" to "Welcome", "userId" to authenticatedUsuario.id,
+               "token" to authenticatedUsuario.token))
        } else {
            logger.error("Login failed for: $loginRequest")
            // HTTP 401 → Unauthorized (credenciales inválidas)
@@ -131,7 +119,7 @@ class UsuarioController {
    }
 
    /**
-       * Endpoint que simula el cierre de sesión del usuario.
+       * Endpoint que cierra la sesión del usuario.
        *
        * Genera una respuesta con el identificador del usuario
        * y la fecha/hora del logout.
@@ -142,27 +130,27 @@ class UsuarioController {
        * @return ResponseEntity con información del logout.
        */
       @PostMapping("/logout")
-      fun logout(): ResponseEntity<Any> {
+      fun logout(@RequestHeader("Authorization", required = false) token: String?): ResponseEntity<Any> {
+            if (token.isNullOrBlank()) {
+                return ResponseEntity.status(401).body(mapOf("error" to "Token no proporcionado"))
+            }
+            // Si el usuario es nulo (no se encuentra por token), mandamos error
+            val usuario = usuarioService.findByToken(token) ?: return ResponseEntity.status(401).body(mapOf("error" to "Token inválido"))
+            // De lo contrario, borramos el token y realizamos el logout
+            usuarioService.logout(token)
+            logger.info("Cierre de sesión solicitado para el usuario ID: ${usuario.id}")
 
-          val usuarioFake = Usuario(
-            id = "789",
-            nombre = "usuario3",
-            email = "usuario3@ciencias.unam.mx",
-            codigoPostal = "08000"
+      val logoutResponse = LogoutResponse(
+          userId = usuario.id,
+          logoutDateTime = LocalDateTime.now().toString()
           )
-
-          val logoutResponse = LogoutResponse(
-              usuarioFake.id,
-              LocalDateTime.now().toString()
-          )
-
-          return ResponseEntity.ok(logoutResponse)
+      return ResponseEntity.ok(logoutResponse)
       }
 
 
 
     /**
-     * Endpoint que simula la actualización de la información del usuario.
+     * Endpoint que  actualiza la información del usuario.
      *
      * Permite modificar correo y contraseña.
      *
@@ -172,37 +160,21 @@ class UsuarioController {
      * @param updateUsuarioRequest DTO con los nuevos datos.
      * @return ResponseEntity con el usuario actualizado.
      */
-    @PutMapping
+    @PutMapping("/{email}")
     fun updateInfoUsuario(
+        @PathVariable email: String,
         @RequestBody updateUsuarioRequest: UpdateUsuarioRequest
     ): ResponseEntity<Any> {
+    logger.info("Solicitud de actualización para el usuario: $email")
+        val usuarioActualizado = usuarioService.updateUsuario(email, updateUsuarioRequest)
 
-        /**
-         *   Se espera un JSON de la forma:
-         *   {
-         *      "nombre": "Nombre",
-         *      "email": "alguien@ciencias.unam.mx",
-         *      "codigoPostal": "00000",
-         *      "password": "myPassword"
-         *  }
-         */
-        // Simulación del usuario encontrado en el sistema
-        val usuarioFake = Usuario(
-            id = "123",
-            nombre = "Usuario1",
-            email = "usuario1@ciencias.unam.mx",
-            codigoPostal = "04510"
-        )
-
-        logger.info("usuario encontrado: $usuarioFake")
-        logger.info("Info a actualizar: $updateUsuarioRequest")
-
-        // Simulación de actualización de datos
-        usuarioFake.nombre = updateUsuarioRequest.nombre
-        usuarioFake.email = updateUsuarioRequest.email
-        usuarioFake.codigoPostal = updateUsuarioRequest.codigoPostal
-        usuarioFake.password = updateUsuarioRequest.password
-
-        return ResponseEntity.ok(usuarioFake)
+        return if (usuarioActualizado != null) {
+            //Aunque se actulice la contraseña, no se devuelve en la respuesta
+            logger.info("Usuario $email actualizado con éxito")
+            ResponseEntity.ok(usuarioActualizado.copy(password = null))
+        } else {
+            logger.error("No se pudo encontrar al usuario $email para actualizar")
+            ResponseEntity.status(404).body(mapOf("error" to "Usuario no encontrado"))
+        }
     }
 }

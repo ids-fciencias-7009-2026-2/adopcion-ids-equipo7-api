@@ -31,6 +31,13 @@ En esta versión, la API gestiona el ciclo de vida de registro y autenticación 
 
 
 ---
+## Práctica 3 - Script común de base de datos
+En esta práctica se consolidó la creación de la base de datos en un único script reproducible, con el objetivo de que cualquier integrante del equipo pueda reconstruir el entorno de backend desde cero.
+## Requisitos 
+Java 21
+PostgreSQL
+Maven Wrapper 
+Archivo .env en la raíz del proyecto (este se debera crear con un ejemplo mas adelante se especifica en el archivo)
 
 ## 1) Instalar PostgreSQL (Debian)
 ```bash
@@ -41,41 +48,42 @@ sudo systemctl enable --now postgresql
 
 ---
 
-## 2) Crear base de datos y usuario (recomendado)
+## 2) Creaación de base de datos y usuario
+El archiv principal para esta práctica es : database/schema.sql
+Este script
+- Elimina la base de datos anterior si existe, crea nuevamente la base `adopcion`, crea el rol `equipo7` si no existe, asigna permisos al usuario de aplicación, y crea la tabla `usuario` con sus restricciones actuales
+
 En esta guía usamos:
 - Base de datos: `adopcion`
 - Usuario: `equipo7`
 - Password: `equipo7`
 
 ```bash
-# Crear BD
-sudo -u postgres psql -c "CREATE DATABASE adopcion;"
+# Ejecutar el script desde cero
+sudo -u postgres psql -f database/schema.sql
 
-# Crear usuario para la app
-sudo -u postgres psql -c "CREATE USER equipo7 WITH PASSWORD 'equipo7';"
-
-# Permisos
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE adopcion TO equipo7;"
-sudo -u postgres psql -d adopcion -c "GRANT ALL ON SCHEMA public TO equipo7;"
-sudo -u postgres psql -d adopcion -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO equipo7;"
 ```
 
 ---
 
-## 3) Crear tabla `usuario` con el script del repo
-El script está en `database/usuario.sql`.
+## 3) Verificar que la base fue creada correctamente
+El script está en `database/schema.sql`.
 
 ```bash
-sudo -u postgres psql -d adopcion -f database/usuario.sql
 sudo -u postgres psql -d adopcion -c "\dt"
 sudo -u postgres psql -d adopcion -c "\d usuario"
 ```
-
-## 4) Renovar permisos sobre la base de datos
+También puede verificarse el acceso con el usuario de la aplicación:
 ```bash
-# Si existen errores de permisos, otorgarlos nuevamente sobre los nuevos datos
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE adopcion TO equipo7;"
+psql -h 127.0.0.1 -p 5432 -U equipo7 -d adopcion
+
 ```
+Si la instalación es correcta, el usuario `equipo7` debe poder conectarse y consultar la tabla `usuario`
+
+
+## 4) Permisos sobre la base de datos
+En la Práctica 3, los permisos del usuario equipo7 ya se configuran automáticamente dentro de database/schema.sql.  
+Por ello, ya no es necesario ejecutar manualmente comandos adicionales de GRANT como parte del flujo normal de instalación.
 
 ---
 
@@ -95,7 +103,7 @@ También existe `.env.example` como referencia de variables.
 
 ## 6) Correr el proyecto
 ```bash
-./mvnw clean test
+./mvnw clean compile
 ./mvnw spring-boot:run
 ```
 
@@ -105,15 +113,39 @@ Si todo está correcto, Spring Boot debe iniciar sin errores de conexión y en c
 
 ---
 
+## 7) Prueba minima de funcionamiento 
+```bash
+curl -X POST http://localhost:8080/usuarios/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Prueba",
+    "email": "prueba@ciencias.unam.mx",
+    "codigoPostal": "04360",
+    "password": "clave123"
+  }'
+
+curl -X POST http://localhost:8080/usuarios/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "prueba@ciencias.unam.mx",
+    "password": "clave123"
+  }'
+
+```
+Resultado esperado : 
+1. el script `schema.sql` crea correctamente la base y la tabla, 
+2. el usuario `equipo7` puede conectarse sin errores de permisos, 
+3. el backend compila y levanta correctamente, 
+4. el registro de usuarios funciona, 
+5. el login responde exitosamente
+
 ## Entregables
 Carpeta `database/`:
-- `usuario.sql` (script de creación de tabla)
-
-Carpeta `postman/`:
-- `practica1-equipo7.postman_collection.json` (colección automatizada para pruebas en Postman)
-
+- `schema.sql` (script de creación principal)
+- archivo `README.md` actualizado 
 ---
 
+## Esta instrucción corresponde al cierre de la iteración 1 y se conserva como referencia
 ## Creación del Tag `1.0.0`
 Cuando:
 - el proyecto levanta correctamente,

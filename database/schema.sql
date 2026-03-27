@@ -1,5 +1,18 @@
 DROP DATABASE IF EXISTS adopcion;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'equipo7') THEN
+        CREATE ROLE equipo7 LOGIN PASSWORD 'equipo7';
+    ELSE
+        ALTER ROLE equipo7 WITH LOGIN PASSWORD 'equipo7';
+    END IF;
+END
+$$;
+
 CREATE DATABASE adopcion;
+GRANT CONNECT ON DATABASE adopcion TO equipo7;
+
 \connect adopcion;
 
 DROP TABLE IF EXISTS usuario;
@@ -12,3 +25,9 @@ CREATE TABLE usuario (
     password VARCHAR(255),
     token VARCHAR(255)
 );
+
+GRANT USAGE ON SCHEMA public TO equipo7;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO equipo7;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO equipo7;

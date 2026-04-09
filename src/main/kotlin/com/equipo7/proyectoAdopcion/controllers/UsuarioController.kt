@@ -177,4 +177,38 @@ class UsuarioController {
             ResponseEntity.status(404).body(mapOf("error" to "Usuario no encontrado"))
         }
     }
+
+    /**
+     * Endpoint para actualizar la información del usuario autenticado.
+     * URL: PUT /usuarios
+     */
+    @PutMapping
+    fun updateInfoUsuario(
+        @RequestHeader("Authorization", required = false) token: String?,
+        @RequestBody request: UpdateUsuarioRequest
+    ): ResponseEntity<Any> {
+        // 1. Validar existencia del token
+        if (token.isNullOrBlank()) {
+            return ResponseEntity.status(401).body(mapOf("error" to "Token no proporcionado"))
+        }
+
+        // 2. Seguridad: Buscar al usuario dueño de ese token
+        val usuarioActual = usuarioService.findByToken(token)
+            ?: return ResponseEntity.status(401).body(mapOf("error" to "Sesión inválida o expirada"))
+
+        // 3. Validaciones básicas para evitar datos vacíos
+        if (request.nombre.isBlank() || request.email.isBlank()) {
+            return ResponseEntity.status(400).body(mapOf("error" to "El nombre y el email son obligatorios"))
+        }
+
+        // 4. Ejecutar la lógica de actualización en el Service
+        val usuarioActualizado = usuarioService.updateUsuario(usuarioActual.email, request)
+
+        return if (usuarioActualizado != null) {
+            ResponseEntity.ok(usuarioActualizado.copy(password = null))
+        } else {
+            // Conflicto: Si retorna null es porque el nuevo correo ya está registrado
+            ResponseEntity.status(409).body(mapOf("error" to "El correo ingresado ya está ocupado por otro usuario"))
+        }
+    }
 }

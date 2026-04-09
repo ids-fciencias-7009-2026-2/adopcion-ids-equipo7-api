@@ -74,12 +74,12 @@ class UsuarioService(
         return savedEntity.toDomain()
     }
 
-    fun updateUsuario(email: String, request: UpdateUsuarioRequest): Usuario? {
-        val usuarioExistente = usuarioRepository.findByEmail(email) ?: return null
+    fun updateUsuario(emailActual: String, request: UpdateUsuarioRequest): Usuario? {
+        val usuarioExistente = usuarioRepository.findByEmail(emailActual) ?: return null
 
-        if (request.email != email) {
-            val usuarioConNuevoEmail = usuarioRepository.findByEmail(request.email)
-            if (usuarioConNuevoEmail != null) {
+        if (request.email != emailActual) {
+            val correoOcupado = usuarioRepository.findByEmail(request.email)
+            if (correoOcupado != null) {
                 return null
             }
         }
@@ -88,7 +88,8 @@ class UsuarioService(
         usuarioExistente.email = request.email
         usuarioExistente.codigoPostal = request.codigoPostal
 
-        if (request.password != null) {
+        // SEGURIDAD: Solo se hashea y se cambia la contraseña si el usuario envió una nueva
+        if (!request.password.isNullOrBlank()) {
             usuarioExistente.password = hashPassword(request.password)
         }
 

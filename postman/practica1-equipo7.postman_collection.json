@@ -265,7 +265,7 @@
       "response": []
     },
     {
-      "name": "6) PUT - /usuarios/{email} (OK)",
+      "name": "6) PUT - /usuarios (OK)",
       "event": [
         {
           "listen": "test",
@@ -291,6 +291,10 @@
           {
             "key": "Content-Type",
             "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{token_ok}}"
           }
         ],
         "body": {
@@ -303,13 +307,12 @@
           }
         },
         "url": {
-          "raw": "{{baseUrl}}/usuarios/{{email_ok}}",
+          "raw": "{{baseUrl}}/usuarios",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
-            "usuarios",
-            "{{email_ok}}"
+            "usuarios"
           ]
         }
       },

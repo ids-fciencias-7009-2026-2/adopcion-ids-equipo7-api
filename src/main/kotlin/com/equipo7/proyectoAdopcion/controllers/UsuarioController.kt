@@ -147,34 +147,37 @@ class UsuarioController {
       return ResponseEntity.ok(logoutResponse)
       }
 
-
-
     /**
-     * Endpoint que  actualiza la información del usuario.
-     *
-     * Permite modificar correo y contraseña.
-     *
-     * URL:    http://localhost:8080/usuarios
-     * Metodo: PUT
-     *
-     * @param updateUsuarioRequest DTO con los nuevos datos.
-     * @return ResponseEntity con el usuario actualizado.
+     * Endpoint para actualizar la información del usuario autenticado.
+     * URL: PUT /usuarios
      */
-    @PutMapping("/{email}")
+    @PutMapping
     fun updateInfoUsuario(
-        @PathVariable email: String,
-        @RequestBody updateUsuarioRequest: UpdateUsuarioRequest
+        @RequestHeader("Authorization", required = false) token: String?,
+        @RequestBody request: UpdateUsuarioRequest
     ): ResponseEntity<Any> {
-    logger.info("Solicitud de actualización para el usuario: $email")
-        val usuarioActualizado = usuarioService.updateUsuario(email, updateUsuarioRequest)
+        // 1. Validar existencia del token
+        if (token.isNullOrBlank()) {
+            return ResponseEntity.status(401).body(mapOf("error" to "Token no proporcionado"))
+        }
+
+        // 2. Seguridad: Buscar al usuario dueño de ese token
+        val usuarioActual = usuarioService.findByToken(token)
+            ?: return ResponseEntity.status(401).body(mapOf("error" to "Sesión inválida o expirada"))
+
+        // 3. Validaciones básicas para evitar datos vacíos
+        if (request.nombre.isBlank() || request.email.isBlank()) {
+            return ResponseEntity.status(400).body(mapOf("error" to "El nombre y el email son obligatorios"))
+        }
+
+        // 4. Ejecutar la lógica de actualización en el Service
+        val usuarioActualizado = usuarioService.updateUsuario(usuarioActual.email, request)
 
         return if (usuarioActualizado != null) {
-            //Aunque se actulice la contraseña, no se devuelve en la respuesta
-            logger.info("Usuario $email actualizado con éxito")
             ResponseEntity.ok(usuarioActualizado.copy(password = null))
         } else {
-            logger.error("No se pudo encontrar al usuario $email para actualizar")
-            ResponseEntity.status(404).body(mapOf("error" to "Usuario no encontrado"))
+            // Conflicto: Si retorna null es porque el nuevo correo ya está registrado
+            ResponseEntity.status(409).body(mapOf("error" to "El correo ingresado ya está ocupado por otro usuario"))
         }
     }
 }

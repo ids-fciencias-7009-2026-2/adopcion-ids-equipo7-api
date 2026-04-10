@@ -147,37 +147,6 @@ class UsuarioController {
       return ResponseEntity.ok(logoutResponse)
       }
 
-
-
-    /**
-     * Endpoint que  actualiza la información del usuario.
-     *
-     * Permite modificar correo y contraseña.
-     *
-     * URL:    http://localhost:8080/usuarios
-     * Metodo: PUT
-     *
-     * @param updateUsuarioRequest DTO con los nuevos datos.
-     * @return ResponseEntity con el usuario actualizado.
-     */
-    @PutMapping("/{email}")
-    fun updateInfoUsuario(
-        @PathVariable email: String,
-        @RequestBody updateUsuarioRequest: UpdateUsuarioRequest
-    ): ResponseEntity<Any> {
-    logger.info("Solicitud de actualización para el usuario: $email")
-        val usuarioActualizado = usuarioService.updateUsuario(email, updateUsuarioRequest)
-
-        return if (usuarioActualizado != null) {
-            //Aunque se actulice la contraseña, no se devuelve en la respuesta
-            logger.info("Usuario $email actualizado con éxito")
-            ResponseEntity.ok(usuarioActualizado.copy(password = null))
-        } else {
-            logger.error("No se pudo encontrar al usuario $email para actualizar")
-            ResponseEntity.status(404).body(mapOf("error" to "Usuario no encontrado"))
-        }
-    }
-
     /**
      * Endpoint para actualizar la información del usuario autenticado.
      * URL: PUT /usuarios

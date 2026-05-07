@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @RestController
-@RequestMapping("/api/publicaciones")
+@RequestMapping("/mascotas")
 class MascotaController(
     private val mascotaService: MascotaService,
     private val mascotaMapper: MascotaMapper

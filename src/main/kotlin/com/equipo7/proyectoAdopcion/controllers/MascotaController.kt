@@ -37,4 +37,41 @@ class MascotaController(
             ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("mensaje" to "Publicación no encontrada"))
         }
     }
+
+    @GetMapping
+    fun listarPublicaciones(
+        @RequestParam(required = false) nombre: String?,
+        @RequestParam(required = false) filtro: String?,
+        @RequestHeader("Authorization", required = false) token: String?
+    ): ResponseEntity<Any> {
+        return try {
+            val publicaciones = mascotaService.listarPublicaciones(nombre, filtro, token)
+            .map { mascotaMapper.domainToResponse(it) }
+        
+        ResponseEntity.ok(publicaciones)
+    } catch (e: SecurityException) {
+        ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(mapOf("error" to e.message))
+        }
+    }
+
+    @PostMapping("/{id}/interes")
+    fun registrarInteres(
+        @PathVariable id: Long,
+        @RequestHeader("Authorization", required = false) token: String?
+    ): ResponseEntity<Any> {
+        return try {
+            val response = mascotaService.registrarInteres(id, token)
+            ResponseEntity.status(HttpStatus.CREATED).body(response)
+        } catch (e: SecurityException) {
+            ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(mapOf("error" to e.message))
+        } catch (e: NoSuchElementException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("error" to e.message))
+        } catch (e: IllegalStateException) {
+            ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(mapOf("error" to e.message))
+        }
+    }
 }

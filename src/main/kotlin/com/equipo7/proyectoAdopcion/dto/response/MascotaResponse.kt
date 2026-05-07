@@ -8,6 +8,6 @@ data class MascotaResponse(
     val tipo: String,
     val raza: String,
     val codigoPostal: String,
-    val usuarioId: Long,
+    val usuarioId: String,
     val estadoPublicacion: String
 )

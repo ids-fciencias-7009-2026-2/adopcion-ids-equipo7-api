@@ -1,7 +1,7 @@
 # API Adopción — Equipo 7
 
 Este repositorio contiene el proyecto de API Spring Boot con Kotlin para el sistema de adopción de perritos.
-**Versión:** 2.0.0 (Iteración 2) - *Primera integración funcional del backend y frontend.*
+**Versión:** 3.0.0 (Iteración 3) - *Publicaciones de mascotas, búsqueda e interacción de adopción.*
 
 ---
 
@@ -43,6 +43,21 @@ En esta versión, el backend evoluciona para integrarse completamente con el fro
 
 ---
 
+## Iteración 3 - Publicaciones e interacciones de adopción
+En esta versión, el sistema se expande más allá del módulo de usuarios e incorpora funcionalidades principales relacionadas con la adopción de mascotas.
+
+Se agregan nuevos casos de uso relacionados con la entidad Mascota y con la interacción entre usuarios y publicaciones:
+
+* **Publicación de mascotas**: Permite registrar animales en adopción dentro de la plataforma. 
+* **Detalle de publicación**: Permite consultar la información completa de una mascota publicada. 
+* **Listado y búsqueda de publicaciones**: Permite consultar publicaciones, buscar por nombre y aplicar filtros. 
+* **Mis publicaciones**: Permite consultar las mascotas publicadas por el usuario autenticado. 
+* **Me interesa**: Permite registrar interés en adoptar una mascota. 
+* **Mascotas de interés**: Permite consultar las mascotas que el usuario marcó como interés.
+
+
+
+---
 ## Levantamiento del proyecto
 
 ### Requisitos 
@@ -63,7 +78,7 @@ sudo systemctl enable --now postgresql
 ### 2) Creación de base de datos y usuario
 El archiv principal para esta práctica es : database/schema.sql
 Este script
-- Elimina la base de datos anterior si existe, crea nuevamente la base `adopcion`, crea el rol `equipo7` si no existe, asigna permisos al usuario de aplicación, y crea la tabla `usuario` con sus restricciones actuales
+- Elimina la base de datos anterior si existe, crea nuevamente la base `adopcion`, crea el rol `equipo7` si no existe, asigna permisos al usuario de aplicación, y crea la tabla `usuario` `animales` `intereses_adopcion`
 
 En esta guía usamos:
 - Base de datos: `adopcion`
@@ -83,7 +98,17 @@ El script está en `database/schema.sql`.
 
 ```bash
 sudo -u postgres psql -d adopcion -c "\dt"
+```
+Tablas esperadas: 
+`usuario`
+`animales`
+`intereses_adopcion`
+
+```bash
 sudo -u postgres psql -d adopcion -c "\d usuario"
+sudo -u postgres psql -d adopcion -c "\d animales"
+sudo -u postgres psql -d adopcion -c "\d interes_adopcion"
+
 ```
 También puede verificarse el acceso con el usuario de la aplicación:
 ```bash
@@ -144,12 +169,223 @@ curl -X POST http://localhost:8080/usuarios/login \
   }'
 
 ```
-Resultado esperado : 
-1. el script `schema.sql` crea correctamente la base y la tabla, 
-2. el usuario `equipo7` puede conectarse sin errores de permisos, 
-3. el backend compila y levanta correctamente, 
-4. el registro de usuarios funciona, 
-5. el login responde exitosamente
+
+### 8) Prueba minima de funcionamineto - Mascotas
+Se tendra que agregar el userId obtenido en el login
+
+```bash
+curl -X POST http://localhost:8080/mascotas/publicar \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Luna",
+    "descripcion": "Perrita tranquila color café",
+    "fotoBase64": "imagen-base64-de-prueba",
+    "tipo": "Perro",
+    "raza": "Mestiza",
+    "codigoPostal": "03000",
+    "usuarioId": "cambiar_por_el_userId"
+  }'
+```
+**Resultado esperado :** 
+```bash
+{
+  "animalId": 1,
+  "nombre": "Luna",
+  "descripcion": "Perrita tranquila color café",
+  "fotoBase64": "imagen-base64-de-prueba",
+  "tipo": "Perro",
+  "raza": "Mestiza",
+  "codigoPostal": "03000",
+  "usuarioId": "userId del login",
+  "estadoPublicacion": "DISPONIBLE"
+}
+```
+* **Listar publicaciones**
+```bash
+curl http://localhost:8080/mascotas
+
+```
+
+**Resultado esperado:**
+```bash
+[
+  {
+    "animalId": 1,
+    "nombre": "Luna",
+    "descripcion": "Perrita tranquila color café",
+    "fotoBase64": "imagen-base64-de-prueba",
+    "tipo": "Perro",
+    "raza": "Mestiza",
+    "codigoPostal": "03000",
+    "usuarioId": "userId del login",
+    "estadoPublicacion": "DISPONIBLE"
+  }
+]
+```
+
+**Buscar por nombre**
+```bash
+curl "http://localhost:8080/mascotas?nombre=luna"
+```
+
+**Resultado esperado:**
+```bash
+[
+  {
+    "animalId": 1,
+    "nombre": "Luna",
+    "descripcion": "Perrita tranquila color café",
+    "fotoBase64": "imagen-base64-de-prueba",
+    "tipo": "Perro",
+    "raza": "Mestiza",
+    "codigoPostal": "03000",
+    "usuarioId": "userId del login",
+    "estadoPublicacion": "DISPONIBLE"
+  }
+]
+```
+
+**Consultar mis publicaciones:**
+Se tendra que agregar el token obtenido en login
+```bash
+curl "http://localhost:8080/mascotas?filtro=mis-publicaciones" \
+  -H "Authorization: cambiar_token"
+```
+
+**Resultado esperado:**
+```bash
+[
+  {
+    "animalId": 1,
+    "nombre": "Luna",
+    "descripcion": "Perrita tranquila color café",
+    "fotoBase64": "imagen-base64-de-prueba",
+    "tipo": "Perro",
+    "raza": "Mestiza",
+    "codigoPostal": "03000",
+    "usuarioId": "userId del login",
+    "estadoPublicacion": "DISPONIBLE"
+  }
+]
+```
+**Registrar interés en una mascota**
+Se tendra que cambiar 1 por el animalId real y el token obtenido en login.
+```bash
+curl -X POST http://localhost:8080/mascotas/1/interes \
+  -H "Authorization: PEGA_AQUI_EL_TOKEN"
+```
+**Resultado esperado:**
+```bash
+{
+  "mensaje": "Interés registrado correctamente",
+  "animalId": 1,
+  "usuarioId": "userId del login"
+}
+```
+
+**Validar interés duplicado**
+```bash
+curl -i -X POST http://localhost:8080/mascotas/1/interes \
+  -H "Authorization: cambiar_token"
+```
+**Resultado esperado:**
+```bash
+HTTP/1.1 409
+
+{
+  "error": "Ya registraste interés en esta mascota"
+}
+```
+
+
+**Consultar mascotas marcadascomo interés**
+```bash
+curl "http://localhost:8080/mascotas?filtro=me-interesa" \
+  -H "Authorization: cambiar_token"
+```
+
+**Resultado esperado:**
+```bash
+[
+  {
+    "animalId": 1,
+    "nombre": "Luna",
+    "descripcion": "Perrita tranquila color café",
+    "fotoBase64": "imagen-base64-de-prueba",
+    "tipo": "Perro",
+    "raza": "Mestiza",
+    "codigoPostal": "03000",
+    "usuarioId": "userId del login",
+    "estadoPublicacion": "DISPONIBLE"
+  }
+]
+```
+
+**Buscar dentro de mascotas marcadas como interés:**
+```bash
+curl "http://localhost:8080/mascotas?filtro=me-interesa&nombre=luna" \
+  -H "Authorization: cambiar_token"
+```
+**Resultado esperado:**
+```bash
+[
+  {
+    "animalId": 1,
+    "nombre": "Luna",
+    "descripcion": "Perrita tranquila color café",
+    "fotoBase64": "imagen-base64-de-prueba",
+    "tipo": "Perro",
+    "raza": "Mestiza",
+    "codigoPostal": "03000",
+    "usuarioId": "userId del login",
+    "estadoPublicacion": "DISPONIBLE"
+  }
+]
+```
+**Validar errores esperados:**
+**Filtro protegido sin token**
+```bash
+curl -i "http://localhost:8080/mascotas?filtro=me-interesa"
+```
+
+**Resultado esperado**
+```bash
+HTTP/1.1 401
+
+{
+  "error": "Token no proporcionado"
+}
+```
+
+**Interés sobre publicación inexistente:**
+```bash
+curl -i -X POST http://localhost:8080/mascotas/999/interes \
+  -H "Authorization: cambiar_token"
+```
+
+**Resultado esperado:**
+```bash
+
+HTTP/1.1 404
+
+{
+  "error": "Publicación no encontrada"
+}
+```
+
+
+**Resultado esperado final:**
+1. el script `schema.sql` crea correctamente la base adopcion. 
+2. el usuario `equipo7` puede conectarse sin errores de permisos.
+3. Las tablas usuario, animales e intereses_adopcion existen correctamente. 
+4. el backend compila y levanta correctamente. 
+5. el registro y login de usuarios funciona. 
+6. el login responde exitosamente.
+7. La consulta y búsqueda de mascotas funciona.
+8. Los filtros mis-publicaciones y me-interesa funcionan con token.
+9. El sistema registra correctamente el interés en una mascota.
+10. El sistema controla errores esperados como token faltante, publicación inexistente e interés duplicado.
+
 
 ## Versionamiento
 Cuando el proyecto levanta correctamente, se crea el tag:
@@ -157,7 +393,7 @@ Cuando el proyecto levanta correctamente, se crea el tag:
 ```bash
 git checkout main
 git pull origin main
-git tag 2.0.0
-git push origin 2.0.0
+git tag 3.0.0
+git push origin 3.0.0
 ```
 

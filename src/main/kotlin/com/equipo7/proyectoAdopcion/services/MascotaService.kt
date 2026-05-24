@@ -117,6 +117,26 @@ class MascotaService(
         )
     }
 
+    fun eliminarPublicacion(
+        animalId: Long,
+        token: String?
+    ) {
+        val usuario = obtenerUsuarioAutenticado(token)
+
+        val mascota = mascotaRepository.findById(animalId)
+            .orElseThrow { NoSuchElementException("Publicación no encontrada") }
+
+        if (mascota.usuarioId != usuario.id) {
+            throw IllegalAccessException("No tienes permiso para eliminar esta publicación")
+        }
+
+        if (mascota.estadoPublicacion != "DISPONIBLE") {
+            throw IllegalStateException("No se puede eliminar una publicación que ya fue adoptada")
+        }
+
+        mascotaRepository.delete(mascota)
+    }
+
     private fun obtenerUsuarioAutenticado(token: String?) =
         if (token.isNullOrBlank()) {
             throw SecurityException("Token no proporcionado")

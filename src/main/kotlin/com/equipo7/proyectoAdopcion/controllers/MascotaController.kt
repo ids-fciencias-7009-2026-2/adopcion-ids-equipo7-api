@@ -74,4 +74,30 @@ class MascotaController(
                 .body(mapOf("error" to e.message))
         }
     }
+
+    @DeleteMapping("/{id}")
+    fun eliminarPublicacion(
+        @PathVariable id: Long,
+        @RequestHeader("Authorization", required = false) token: String?
+    ): ResponseEntity<Any> {
+        return try {
+            mascotaService.eliminarPublicacion(id, token)
+
+            ResponseEntity.ok(
+                mapOf("mensaje" to "Publicación eliminada correctamente")
+            )
+        } catch (e: SecurityException) {
+            ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(mapOf("mensaje" to e.message))
+        } catch (e: NoSuchElementException) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("mensaje" to e.message))
+        } catch (e: IllegalAccessException) {
+            ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("mensaje" to e.message))
+        } catch (e: IllegalStateException) {
+            ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(mapOf("mensaje" to e.message))
+        }
+    }
 }

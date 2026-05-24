@@ -9,4 +9,6 @@ interface InteresAdopcionRepository : JpaRepository<InteresAdopcionEntity, Long>
     fun existsByUsuarioIdAndAnimalId(usuarioId: String, animalId: Long): Boolean
 
     fun findByUsuarioId(usuarioId: String): List<InteresAdopcionEntity>
+
+    fun findByAnimalIdInOrderByFechaInteresDesc(animalIds: List<Long>): List<InteresAdopcionEntity>
 }

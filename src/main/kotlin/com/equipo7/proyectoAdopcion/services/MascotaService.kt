@@ -72,10 +72,13 @@ class MascotaService(
             }
 
             else -> {
+                // Se filtran exclusivamente las publicaciones con estado DISPONIBLE
                 if (nombreLimpio != null) {
                     mascotaRepository.findByNombreContainingIgnoreCase(nombreLimpio)
+                        .filter { it.estadoPublicacion == "DISPONIBLE" }
                 } else {
                     mascotaRepository.findAll()
+                        .filter { it.estadoPublicacion == "DISPONIBLE" }
                 }
             }
         }
@@ -145,4 +148,56 @@ class MascotaService(
                 ?: throw SecurityException("Sesión inválida o expirada")
         }
 
+    fun editarPublicacion(animalId: Long, mascotaModificada: Mascota, token: String?): Mascota {
+        val usuario = obtenerUsuarioAutenticado(token)
+
+        val mascotaExistente = mascotaRepository.findById(animalId)
+            .orElseThrow { NoSuchElementException("Publicación no encontrada") }
+
+        if (mascotaExistente.usuarioId != usuario.id) {
+            throw IllegalAccessException("No tienes permiso para editar esta publicación")
+        }
+
+        if (mascotaModificada.usuarioId != mascotaExistente.usuarioId) {
+            throw IllegalAccessException("El ID de usuario enviado no coincide con el dueño de la publicación")
+        }
+
+        if (mascotaExistente.estadoPublicacion != "DISPONIBLE") {
+            throw IllegalStateException("No se puede editar una publicación que ya no está disponible")
+        }
+
+        val entidadActualizada = mascotaExistente.copy(
+            nombre = mascotaModificada.nombre,
+            descripcion = mascotaModificada.descripcion,
+            fotoBase64 = mascotaModificada.fotoBase64,
+            tipo = mascotaModificada.tipo,
+            raza = mascotaModificada.raza,
+            codigoPostal = mascotaModificada.codigoPostal
+        )
+
+        val mascotaGuardada = mascotaRepository.save(entidadActualizada)
+        return mascotaMapper.entityToDomain(mascotaGuardada)
+    }
+
+    fun marcarComoAdoptada(animalId: Long, token: String?): Mascota {
+        val usuario = obtenerUsuarioAutenticado(token)
+
+        val mascotaExistente = mascotaRepository.findById(animalId)
+            .orElseThrow { NoSuchElementException("Publicación no encontrada") }
+
+        if (mascotaExistente.usuarioId != usuario.id) {
+            throw IllegalAccessException("No tienes permiso para marcar esta publicación como adoptada")
+        }
+
+        if (mascotaExistente.estadoPublicacion != "DISPONIBLE") {
+            throw IllegalStateException("La mascota ya fue adoptada o no se encuentra disponible")
+        }
+
+        val entidadActualizada = mascotaExistente.copy(
+            estadoPublicacion = "ADOPTADO"
+        )
+
+        val mascotaGuardada = mascotaRepository.save(entidadActualizada)
+        return mascotaMapper.entityToDomain(mascotaGuardada)
+    }
 }

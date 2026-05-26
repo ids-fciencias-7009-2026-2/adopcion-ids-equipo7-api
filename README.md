@@ -1,72 +1,210 @@
 # API Adopción — Equipo 7
 
-Este repositorio contiene el proyecto de API Spring Boot con Kotlin para el sistema de adopción de perritos.
-**Versión:** 3.0.0 (Iteración 3) - *Publicaciones de mascotas, búsqueda e interacción de adopción.*
+Este repositorio contiene el proyecto de API **Spring Boot + Kotlin** para el sistema de adopción de mascotas del Equipo 7.
+
+**Versión:** `4.0.0` — Iteración 4  
+**Estado:** Consolidación final del backend: edición de publicaciones, confirmación de adopción, panel de solicitudes y eliminación de publicaciones propias.
 
 ---
 
-## Práctica 1 — Postman
-- Video (pruebas de endpoints): https://drive.google.com/file/d/1nf5yK5B21EGwNlne6fQfNRqQ-xI63-3N/view?usp=sharing
-- Colección Postman en: `postman/practica1-equipo7.postman_collection.json`
+## Tabla de contenido
+
+1. [Descripción general](#descripción-general)
+2. [Documentación del proyecto](#documentación-del-proyecto)
+3. [Tecnologías utilizadas](#tecnologías-utilizadas)
+4. [Historial por iteración](#historial-por-iteración)
+5. [Arquitectura del backend](#arquitectura-del-backend)
+6. [Requisitos previos](#requisitos-previos)
+7. [Configuración de base de datos](#configuración-de-base-de-datos)
+8. [Variables de entorno](#variables-de-entorno)
+9. [Levantamiento del proyecto](#levantamiento-del-proyecto)
+10. [Endpoints principales](#endpoints-principales)
+11. [Pruebas rápidas con cURL](#pruebas-rápidas-con-curl)
+12. [Validaciones importantes](#validaciones-importantes)
+13. [Versionamiento](#versionamiento)
 
 ---
 
-## Práctica 2 — Conexión a PostgreSQL con `.env`
+## Descripción general
 
-### Requisitos
+La API permite gestionar usuarios, publicaciones de mascotas en adopción e interacciones entre usuarios interesados y publicaciones.
+
+El sistema permite:
+
+- Registrar usuarios.
+- Iniciar y cerrar sesión mediante token.
+- Consultar y actualizar información del usuario autenticado.
+- Publicar mascotas en adopción.
+- Consultar catálogo de mascotas disponibles.
+- Buscar mascotas por nombre.
+- Consultar detalle de una publicación.
+- Registrar interés en una mascota.
+- Consultar publicaciones propias.
+- Consultar mascotas marcadas como interés.
+- Editar publicaciones propias.
+- Confirmar adopción marcando una mascota como `ADOPTADO`.
+- Consultar solicitudes de interés recibidas por el publicador.
+- Eliminar publicaciones propias disponibles.
+
+> **Importante:** El backend espera el token en el encabezado `Authorization` sin prefijo `Bearer`.
+
+Ejemplo correcto:
+
+```http
+Authorization: 123e4567-e89b-12d3-a456-426614174000
+```
+
+Ejemplo incorrecto:
+
+```http
+Authorization: Bearer 123e4567-e89b-12d3-a456-426614174000
+```
+
+---
+
+## Documentación del proyecto
+
+La documentación evolutiva del sistema se encuentra en el siguiente enlace:
+
+- **Documentación Iteración 4:** `[https://www.notion.so/Sistema-Adopcion-Equipo7-36bde1a623d78086a808cb4a422f185e?source=copy_link]`
+
+Este documento concentra la especificación de requerimientos, actores, casos de uso, diagramas, arquitectura, flujo de autenticación, modelo de datos, limitaciones conocidas y entregables de la versión final.
+
+
+---
+
+## Tecnologías utilizadas
+
+- **Kotlin**
+- **Spring Boot**
+- **Spring Data JPA**
+- **PostgreSQL**
+- **Maven Wrapper**
+- **dotenv-kotlin**
+- **MessageDigest / SHA-256** para hash de contraseñas
+- **SLF4J** para registros
+
+---
+
+## Historial por iteración
+
+### Iteración 1 — Backend funcional y usuario
+
+La API gestiona el ciclo de vida básico de la entidad `Usuario`:
+
+- Registro de usuarios.
+- Inicio de sesión.
+- Generación de token.
+- Consulta de información del usuario autenticado.
+- Cierre de sesión e invalidación del token.
+
+---
+
+### Iteración 2 — Integración con frontend
+
+El backend se integra con el frontend mediante una arquitectura cliente-servidor.
+
+Cambios principales:
+
+- Endpoint de actualización de datos de usuario.
+- Configuración de CORS para permitir peticiones desde el frontend.
+- Uso del token en el encabezado `Authorization`.
+
+---
+
+### Iteración 3 — Publicaciones e interacción de adopción
+
+Se incorporan funcionalidades principales relacionadas con la adopción de mascotas:
+
+- Publicación de mascotas.
+- Consulta de catálogo.
+- Búsqueda por nombre.
+- Consulta de detalle.
+- Mis publicaciones.
+- Registro de interés.
+- Consulta de mascotas marcadas como interés.
+
+---
+
+### Iteración 4 — Consolidación final
+
+Se agregan funcionalidades de gestión y cierre del proceso de adopción:
+
+- **Edición de publicaciones propias:** `PUT /mascotas/editar/{id}`
+- **Confirmación de adopción:** `PUT /mascotas/{id}/adoptar`
+- **Panel de solicitudes recibidas:** `GET /solicitudes`
+- **Eliminación de publicaciones propias:** `DELETE /mascotas/{id}`
+
+Estas funcionalidades validan token, propiedad de la publicación, existencia del recurso y estado de la mascota antes de modificar la base de datos.
+
+---
+
+## Arquitectura del backend
+
+El backend mantiene una arquitectura por capas:
+
+```text
+Controller → Service → Repository
+```
+
+### Controller
+
+Recibe peticiones HTTP, extrae parámetros, cuerpo de la petición y encabezados, y devuelve respuestas HTTP.
+
+Ejemplos:
+
+- `UsuarioController`
+- `MascotaController`
+- `SolicitudController`
+
+### Service
+
+Contiene la lógica de negocio, validaciones y reglas del sistema.
+
+Ejemplos:
+
+- validar token;
+- verificar dueño de publicación;
+- impedir edición de mascotas adoptadas;
+- registrar interés;
+- agrupar solicitudes por mascota.
+
+### Repository
+
+Se encarga del acceso a base de datos mediante Spring Data JPA.
+
+Ejemplos:
+
+- `UsuarioRepository`
+- `MascotaRepository`
+- `InteresAdopcionRepository`
+
+### DTOs y Mappers
+
+El sistema utiliza DTOs y mappers para separar:
+
+- datos recibidos por la API;
+- modelos de dominio;
+- entidades de persistencia;
+- respuestas enviadas al frontend.
+
+---
+
+## Requisitos previos
+
 - Java 21
-- PostgreSQL (Debian)
+- PostgreSQL
 - Maven Wrapper incluido (`./mvnw`)
+- Archivo `.env` en la raíz del proyecto
 
-> **Convención del equipo:** PostgreSQL en **puerto 5432**.
-
----
-
-## Iteración 1 - Backend funcional y Usuario
-En esta versión, la API gestiona el ciclo de vida de registro y autenticación de la entidad `Usuario` mediante tokens:
-* **Registro de Usuarios:** Creación y persistencia de cuentas con contraseñas cifradas.
-* **Inicio de sesión:** Validación de credenciales y generación de tokens.
-* **Consulta de información:** Acceso seguro a la información del usuario que este autenticado.
-* **Cierre de sesión:** Invalidación del token activo.
+> **Convención del equipo:** PostgreSQL en puerto `5432`.
 
 ---
 
-## Práctica 3 - Script común de base de datos
-En esta práctica se consolidó la creación de la base de datos en un único script reproducible, con el objetivo de que cualquier integrante del equipo pueda reconstruir el entorno de backend desde cero.
+## Configuración de base de datos
 
----
+### 1. Instalar PostgreSQL en Debian
 
-## Iteración 2 - Integración con el frontend
-En esta versión, el backend evoluciona para integrarse completamente con el frontend adoptando una arquitecura general cliente-servidor:
-* **Actualización:** Implementación del endpoint que permite modificar la información del usuario.
-* **Comunicación con el frontend:** Configuración nativa para recibir peticiones asíncronas de manera segura desde el frontend.
-
----
-
-## Iteración 3 - Publicaciones e interacciones de adopción
-En esta versión, el sistema se expande más allá del módulo de usuarios e incorpora funcionalidades principales relacionadas con la adopción de mascotas.
-
-Se agregan nuevos casos de uso relacionados con la entidad Mascota y con la interacción entre usuarios y publicaciones:
-
-* **Publicación de mascotas**: Permite registrar animales en adopción dentro de la plataforma. 
-* **Detalle de publicación**: Permite consultar la información completa de una mascota publicada. 
-* **Listado y búsqueda de publicaciones**: Permite consultar publicaciones, buscar por nombre y aplicar filtros. 
-* **Mis publicaciones**: Permite consultar las mascotas publicadas por el usuario autenticado. 
-* **Me interesa**: Permite registrar interés en adoptar una mascota. 
-* **Mascotas de interés**: Permite consultar las mascotas que el usuario marcó como interés.
-
-
-
----
-## Levantamiento del proyecto
-
-### Requisitos 
-Java 21
-PostgreSQL
-Maven Wrapper 
-Archivo .env en la raíz del proyecto (este se debera crear con un ejemplo mas adelante se especifica en el archivo)
-
-### 1) Instalar PostgreSQL (Debian)
 ```bash
 sudo apt update
 sudo apt install -y postgresql postgresql-contrib
@@ -75,84 +213,169 @@ sudo systemctl enable --now postgresql
 
 ---
 
-### 2) Creación de base de datos y usuario
-El archiv principal para esta práctica es : database/schema.sql
-Este script
-- Elimina la base de datos anterior si existe, crea nuevamente la base `adopcion`, crea el rol `equipo7` si no existe, asigna permisos al usuario de aplicación, y crea la tabla `usuario` `animales` `intereses_adopcion`
+### 2. Crear base de datos y usuario
 
-En esta guía usamos:
-- Base de datos: `adopcion`
-- Usuario: `equipo7`
-- Password: `equipo7`
+El archivo principal es:
+
+```text
+database/schema.sql
+```
+
+Este script:
+
+- elimina la base anterior si existe;
+- crea la base `adopcion`;
+- crea el rol `equipo7` si no existe;
+- asigna permisos al usuario de aplicación;
+- crea las tablas necesarias.
+
+Configuración usada:
+
+```text
+Base de datos: adopcion
+Usuario: equipo7
+Password: equipo7
+Puerto: 5432
+```
+
+Ejecutar:
 
 ```bash
-# Ejecutar el script desde cero
 sudo -u postgres psql -f database/schema.sql
-
 ```
 
 ---
 
-### 3) Verificar que la base fue creada correctamente
-El script está en `database/schema.sql`.
+### 3. Verificar tablas
 
 ```bash
 sudo -u postgres psql -d adopcion -c "\dt"
 ```
-Tablas esperadas: 
-`usuario`
-`animales`
-`intereses_adopcion`
+
+Tablas esperadas:
+
+```text
+usuario
+animales
+intereses_adopcion
+```
+
+Ver estructura de tablas:
 
 ```bash
 sudo -u postgres psql -d adopcion -c "\d usuario"
 sudo -u postgres psql -d adopcion -c "\d animales"
-sudo -u postgres psql -d adopcion -c "\d interes_adopcion"
-
+sudo -u postgres psql -d adopcion -c "\d intereses_adopcion"
 ```
-También puede verificarse el acceso con el usuario de la aplicación:
+
+Probar conexión con el usuario de aplicación:
+
 ```bash
 psql -h 127.0.0.1 -p 5432 -U equipo7 -d adopcion
-
 ```
-Si la instalación es correcta, el usuario `equipo7` debe poder conectarse y consultar la tabla `usuario`
-
-
-### 4) Permisos sobre la base de datos
-En la Práctica 3, los permisos del usuario equipo7 ya se configuran automáticamente dentro de database/schema.sql.  
-Por ello, ya no es necesario ejecutar manualmente comandos adicionales de GRANT como parte del flujo normal de instalación.
 
 ---
 
-### 5) Crear archivo `.env` (este por convención NO se sube al repositorio)
-Crea un archivo `.env` en la raíz del proyecto (este archivo es ignorado por git).
+## Variables de entorno
 
-`.env` (ejemplo):
+Crear archivo `.env` en la raíz del proyecto.
+
+> Este archivo no debe subirse al repositorio.
+
+Ejemplo:
+
 ```env
 URL_DB=127.0.0.1:5432/adopcion
 USER_DB=equipo7
 PASSWORD_DB=equipo7
 ```
 
-También existe `.env.example` como referencia de variables.
+También existe `.env.example` como referencia.
 
 ---
 
-### 6) Correr el proyecto
+## Levantamiento del proyecto
+
+Compilar:
+
 ```bash
 ./mvnw clean compile
+```
+
+Levantar la API:
+
+```bash
 ./mvnw spring-boot:run
 ```
 
-Si todo está correcto, Spring Boot debe iniciar sin errores de conexión y en consola deberían verse mensajes de Hibernate/JPA y:
-- `Tomcat started on port 8080`
-- `Started ...Application...`
+Si todo está correcto, debe aparecer en consola algo similar a:
+
+```text
+Tomcat started on port 8080
+Started ...Application...
+```
+
+La API queda disponible en:
+
+```text
+http://localhost:8080
+```
 
 ---
 
-### 7) Prueba minima de funcionamiento 
+## Endpoints principales
+
+### Usuarios
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `POST` | `/usuarios/register` | Registrar usuario |
+| `POST` | `/usuarios/login` | Iniciar sesión |
+| `GET` | `/usuarios/me` | Consultar usuario autenticado |
+| `PUT` | `/usuarios` | Actualizar datos del usuario |
+| `POST` | `/usuarios/logout` | Cerrar sesión |
+
+---
+
+### Mascotas
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `POST` | `/mascotas/publicar` | Publicar mascota |
+| `GET` | `/mascotas` | Consultar catálogo de mascotas disponibles |
+| `GET` | `/mascotas?nombre={nombre}` | Buscar mascotas por nombre |
+| `GET` | `/mascotas?filtro=mis-publicaciones` | Consultar publicaciones propias |
+| `GET` | `/mascotas?filtro=me-interesa` | Consultar mascotas marcadas con interés |
+| `GET` | `/mascotas/detalle/{id}` | Consultar detalle de mascota |
+| `POST` | `/mascotas/{id}/interes` | Registrar interés en una mascota |
+| `PUT` | `/mascotas/editar/{id}` | Editar publicación propia |
+| `PUT` | `/mascotas/{id}/adoptar` | Marcar mascota como adoptada |
+| `DELETE` | `/mascotas/{id}` | Eliminar publicación propia |
+
+---
+
+### Solicitudes
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `GET` | `/solicitudes` | Consultar solicitudes de interés recibidas por el publicador |
+
+---
+
+## Pruebas rápidas con cURL
+
+Las pruebas siguientes asumen que la API está corriendo en:
+
+```text
+http://localhost:8080
+```
+
+---
+
+### 1. Registrar usuario
+
 ```bash
-curl -X POST http://localhost:8080/usuarios/register \
+curl -i -X POST http://localhost:8080/usuarios/register \
   -H "Content-Type: application/json" \
   -d '{
     "nombre": "Prueba",
@@ -160,240 +383,372 @@ curl -X POST http://localhost:8080/usuarios/register \
     "codigoPostal": "04360",
     "password": "clave123"
   }'
+```
 
-curl -X POST http://localhost:8080/usuarios/login \
+---
+
+### 2. Login
+
+```bash
+LOGIN=$(curl -s -X POST http://localhost:8080/usuarios/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "prueba@ciencias.unam.mx",
     "password": "clave123"
-  }'
+  }')
 
+echo "$LOGIN"
 ```
 
-### 8) Prueba minima de funcionamineto - Mascotas
-Se tendra que agregar el userId obtenido en el login
+Extraer token y userId:
 
 ```bash
-curl -X POST http://localhost:8080/mascotas/publicar \
+TOKEN=$(python3 -c 'import sys,json; print(json.load(sys.stdin)["token"])' <<< "$LOGIN")
+USER_ID=$(python3 -c 'import sys,json; print(json.load(sys.stdin)["userId"])' <<< "$LOGIN")
+
+echo "$TOKEN"
+echo "$USER_ID"
+```
+
+---
+
+### 3. Consultar usuario autenticado
+
+```bash
+curl -i http://localhost:8080/usuarios/me \
+  -H "Authorization: $TOKEN"
+```
+
+---
+
+### 4. Publicar mascota
+
+```bash
+MASCOTA=$(curl -s -X POST http://localhost:8080/mascotas/publicar \
+  -H "Authorization: $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "nombre": "Luna",
-    "descripcion": "Perrita tranquila color café",
-    "fotoBase64": "imagen-base64-de-prueba",
-    "tipo": "Perro",
-    "raza": "Mestiza",
-    "codigoPostal": "03000",
-    "usuarioId": "cambiar_por_el_userId"
-  }'
-```
-**Resultado esperado :** 
-```bash
-{
-  "animalId": 1,
-  "nombre": "Luna",
-  "descripcion": "Perrita tranquila color café",
-  "fotoBase64": "imagen-base64-de-prueba",
-  "tipo": "Perro",
-  "raza": "Mestiza",
-  "codigoPostal": "03000",
-  "usuarioId": "userId del login",
-  "estadoPublicacion": "DISPONIBLE"
-}
-```
-* **Listar publicaciones**
-```bash
-curl http://localhost:8080/mascotas
+  -d "{
+    \"nombre\": \"Luna\",
+    \"descripcion\": \"Perrita tranquila color café\",
+    \"fotoBase64\": \"imagen-base64-de-prueba\",
+    \"tipo\": \"Perro\",
+    \"raza\": \"Mestiza\",
+    \"codigoPostal\": \"03000\",
+    \"usuarioId\": \"$USER_ID\"
+  }")
 
+echo "$MASCOTA"
 ```
 
-**Resultado esperado:**
+Extraer `animalId`:
+
 ```bash
-[
-  {
-    "animalId": 1,
-    "nombre": "Luna",
-    "descripcion": "Perrita tranquila color café",
-    "fotoBase64": "imagen-base64-de-prueba",
-    "tipo": "Perro",
-    "raza": "Mestiza",
-    "codigoPostal": "03000",
-    "usuarioId": "userId del login",
-    "estadoPublicacion": "DISPONIBLE"
-  }
-]
+ANIMAL_ID=$(python3 -c 'import sys,json; print(json.load(sys.stdin)["animalId"])' <<< "$MASCOTA")
+echo "$ANIMAL_ID"
 ```
 
-**Buscar por nombre**
+---
+
+### 5. Listar publicaciones disponibles
+
 ```bash
-curl "http://localhost:8080/mascotas?nombre=luna"
+curl -i http://localhost:8080/mascotas
 ```
 
-**Resultado esperado:**
-```bash
-[
-  {
-    "animalId": 1,
-    "nombre": "Luna",
-    "descripcion": "Perrita tranquila color café",
-    "fotoBase64": "imagen-base64-de-prueba",
-    "tipo": "Perro",
-    "raza": "Mestiza",
-    "codigoPostal": "03000",
-    "usuarioId": "userId del login",
-    "estadoPublicacion": "DISPONIBLE"
-  }
-]
+El catálogo general debe mostrar publicaciones en estado:
+
+```text
+DISPONIBLE
 ```
 
-**Consultar mis publicaciones:**
-Se tendra que agregar el token obtenido en login
+---
+
+### 6. Buscar por nombre
+
 ```bash
-curl "http://localhost:8080/mascotas?filtro=mis-publicaciones" \
-  -H "Authorization: cambiar_token"
+curl -i "http://localhost:8080/mascotas?nombre=luna"
 ```
 
-**Resultado esperado:**
+---
+
+### 7. Consultar detalle
+
 ```bash
-[
-  {
-    "animalId": 1,
-    "nombre": "Luna",
-    "descripcion": "Perrita tranquila color café",
-    "fotoBase64": "imagen-base64-de-prueba",
-    "tipo": "Perro",
-    "raza": "Mestiza",
-    "codigoPostal": "03000",
-    "usuarioId": "userId del login",
-    "estadoPublicacion": "DISPONIBLE"
-  }
-]
+curl -i http://localhost:8080/mascotas/detalle/$ANIMAL_ID
 ```
-**Registrar interés en una mascota**
-Se tendra que cambiar 1 por el animalId real y el token obtenido en login.
+
+---
+
+### 8. Consultar mis publicaciones
+
 ```bash
-curl -X POST http://localhost:8080/mascotas/1/interes \
-  -H "Authorization: PEGA_AQUI_EL_TOKEN"
+curl -i "http://localhost:8080/mascotas?filtro=mis-publicaciones" \
+  -H "Authorization: $TOKEN"
 ```
-**Resultado esperado:**
+
+---
+
+### 9. Registrar interés
+
+Para probar interés correctamente, lo ideal es usar un segundo usuario distinto al publicador.  
+Con el mismo token puede funcionar o fallar dependiendo de las reglas que el equipo haya decidido aplicar.
+
 ```bash
+curl -i -X POST http://localhost:8080/mascotas/$ANIMAL_ID/interes \
+  -H "Authorization: $TOKEN"
+```
+
+Resultado esperado si se registra correctamente:
+
+```json
 {
   "mensaje": "Interés registrado correctamente",
   "animalId": 1,
-  "usuarioId": "userId del login"
+  "usuarioId": "id-del-usuario"
 }
 ```
 
-**Validar interés duplicado**
+---
+
+### 10. Validar interés duplicado
+
 ```bash
-curl -i -X POST http://localhost:8080/mascotas/1/interes \
-  -H "Authorization: cambiar_token"
+curl -i -X POST http://localhost:8080/mascotas/$ANIMAL_ID/interes \
+  -H "Authorization: $TOKEN"
 ```
-**Resultado esperado:**
-```bash
+
+Resultado esperado:
+
+```text
 HTTP/1.1 409
+```
 
+---
+
+### 11. Consultar mascotas marcadas como interés
+
+```bash
+curl -i "http://localhost:8080/mascotas?filtro=me-interesa" \
+  -H "Authorization: $TOKEN"
+```
+
+---
+
+### 12. Editar publicación propia
+
+```bash
+curl -i -X PUT http://localhost:8080/mascotas/editar/$ANIMAL_ID \
+  -H "Authorization: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"nombre\": \"Luna actualizada\",
+    \"descripcion\": \"Perrita tranquila, sociable y vacunada\",
+    \"fotoBase64\": \"imagen-base64-actualizada\",
+    \"tipo\": \"Perro\",
+    \"raza\": \"Mestiza\",
+    \"codigoPostal\": \"03100\",
+    \"usuarioId\": \"$USER_ID\"
+  }"
+```
+
+Resultado esperado:
+
+```text
+HTTP/1.1 200
+```
+
+y la respuesta debe incluir la mascota actualizada.
+
+---
+
+### 13. Consultar panel de solicitudes recibidas
+
+```bash
+curl -i http://localhost:8080/solicitudes \
+  -H "Authorization: $TOKEN"
+```
+
+Resultado esperado:
+
+- lista de mascotas publicadas por el usuario autenticado;
+- interesados agrupados por mascota;
+- si no hay solicitudes, lista vacía o listas de interesados vacías según corresponda.
+
+---
+
+### 14. Confirmar adopción
+
+```bash
+curl -i -X PUT http://localhost:8080/mascotas/$ANIMAL_ID/adoptar \
+  -H "Authorization: $TOKEN"
+```
+
+Resultado esperado:
+
+```text
+HTTP/1.1 200
+```
+
+La mascota debe cambiar su estado a:
+
+```text
+ADOPTADO
+```
+
+Después de esto, no debe aparecer en el catálogo general de mascotas disponibles.
+
+---
+
+### 15. Intentar confirmar adopción nuevamente
+
+```bash
+curl -i -X PUT http://localhost:8080/mascotas/$ANIMAL_ID/adoptar \
+  -H "Authorization: $TOKEN"
+```
+
+Resultado esperado:
+
+```text
+HTTP/1.1 409
+```
+
+---
+
+### 16. Eliminar publicación propia disponible
+
+Para probar eliminación, se recomienda publicar otra mascota que siga en estado `DISPONIBLE`.
+
+```bash
+curl -i -X DELETE http://localhost:8080/mascotas/$ANIMAL_ID \
+  -H "Authorization: $TOKEN"
+```
+
+Resultado esperado si la publicación está disponible y pertenece al usuario:
+
+```text
+HTTP/1.1 200
+```
+
+Respuesta esperada:
+
+```json
 {
-  "error": "Ya registraste interés en esta mascota"
+  "mensaje": "Publicación eliminada correctamente"
 }
 ```
 
+---
 
-**Consultar mascotas marcadascomo interés**
-```bash
-curl "http://localhost:8080/mascotas?filtro=me-interesa" \
-  -H "Authorization: cambiar_token"
-```
+## Validaciones importantes
 
-**Resultado esperado:**
-```bash
-[
-  {
-    "animalId": 1,
-    "nombre": "Luna",
-    "descripcion": "Perrita tranquila color café",
-    "fotoBase64": "imagen-base64-de-prueba",
-    "tipo": "Perro",
-    "raza": "Mestiza",
-    "codigoPostal": "03000",
-    "usuarioId": "userId del login",
-    "estadoPublicacion": "DISPONIBLE"
-  }
-]
-```
+### Rutas protegidas sin token
 
-**Buscar dentro de mascotas marcadas como interés:**
-```bash
-curl "http://localhost:8080/mascotas?filtro=me-interesa&nombre=luna" \
-  -H "Authorization: cambiar_token"
-```
-**Resultado esperado:**
-```bash
-[
-  {
-    "animalId": 1,
-    "nombre": "Luna",
-    "descripcion": "Perrita tranquila color café",
-    "fotoBase64": "imagen-base64-de-prueba",
-    "tipo": "Perro",
-    "raza": "Mestiza",
-    "codigoPostal": "03000",
-    "usuarioId": "userId del login",
-    "estadoPublicacion": "DISPONIBLE"
-  }
-]
-```
-**Validar errores esperados:**
-**Filtro protegido sin token**
 ```bash
 curl -i "http://localhost:8080/mascotas?filtro=me-interesa"
+curl -i http://localhost:8080/solicitudes
+curl -i -X PUT http://localhost:8080/mascotas/editar/1 \
+  -H "Content-Type: application/json" \
+  -d '{}'
+curl -i -X DELETE http://localhost:8080/mascotas/1
 ```
 
-**Resultado esperado**
-```bash
+Resultado esperado:
+
+```text
 HTTP/1.1 401
-
-{
-  "error": "Token no proporcionado"
-}
 ```
 
-**Interés sobre publicación inexistente:**
+---
+
+### Publicación inexistente
+
 ```bash
+curl -i http://localhost:8080/mascotas/detalle/999
 curl -i -X POST http://localhost:8080/mascotas/999/interes \
-  -H "Authorization: cambiar_token"
+  -H "Authorization: $TOKEN"
+curl -i -X PUT http://localhost:8080/mascotas/editar/999 \
+  -H "Authorization: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+curl -i -X DELETE http://localhost:8080/mascotas/999 \
+  -H "Authorization: $TOKEN"
 ```
 
-**Resultado esperado:**
-```bash
+Resultado esperado:
 
+```text
 HTTP/1.1 404
-
-{
-  "error": "Publicación no encontrada"
-}
 ```
 
+---
 
-**Resultado esperado final:**
-1. el script `schema.sql` crea correctamente la base adopcion. 
-2. el usuario `equipo7` puede conectarse sin errores de permisos.
-3. Las tablas usuario, animales e intereses_adopcion existen correctamente. 
-4. el backend compila y levanta correctamente. 
-5. el registro y login de usuarios funciona. 
-6. el login responde exitosamente.
-7. La consulta y búsqueda de mascotas funciona.
-8. Los filtros mis-publicaciones y me-interesa funcionan con token.
+### Usuario no dueño
+
+Para probar `403 Forbidden`, se debe:
+
+1. crear una mascota con un usuario;
+2. iniciar sesión con otro usuario;
+3. intentar editar, adoptar o eliminar la mascota del primer usuario.
+
+Endpoints a probar con el segundo token:
+
+```bash
+curl -i -X PUT http://localhost:8080/mascotas/editar/$ANIMAL_ID \
+  -H "Authorization: $TOKEN_OTRO_USUARIO" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+curl -i -X PUT http://localhost:8080/mascotas/$ANIMAL_ID/adoptar \
+  -H "Authorization: $TOKEN_OTRO_USUARIO"
+
+curl -i -X DELETE http://localhost:8080/mascotas/$ANIMAL_ID \
+  -H "Authorization: $TOKEN_OTRO_USUARIO"
+```
+
+Resultado esperado:
+
+```text
+HTTP/1.1 403
+```
+
+---
+
+## Resultado esperado final
+
+Al terminar la validación:
+
+1. `schema.sql` crea correctamente la base `adopcion`.
+2. El usuario `equipo7` puede conectarse sin errores de permisos.
+3. Las tablas `usuario`, `animales` e `intereses_adopcion` existen correctamente.
+4. El backend compila y levanta correctamente.
+5. Registro, login, consulta, actualización y logout funcionan.
+6. La publicación de mascotas funciona.
+7. La consulta, búsqueda y detalle de mascotas funcionan.
+8. Los filtros `mis-publicaciones` y `me-interesa` funcionan con token.
 9. El sistema registra correctamente el interés en una mascota.
-10. El sistema controla errores esperados como token faltante, publicación inexistente e interés duplicado.
+10. El sistema consulta solicitudes recibidas mediante `GET /solicitudes`.
+11. El sistema permite editar publicaciones propias mediante `PUT /mascotas/editar/{id}`.
+12. El sistema permite confirmar adopción mediante `PUT /mascotas/{id}/adoptar`.
+13. El sistema permite eliminar publicaciones propias mediante `DELETE /mascotas/{id}`.
+14. El sistema controla errores esperados: token faltante, token inválido, publicación inexistente, interés duplicado, usuario no dueño y publicación no disponible.
 
+---
 
 ## Versionamiento
-Cuando el proyecto levanta correctamente, se crea el tag:
+
+Cuando el proyecto esté integrado en `main`, compile correctamente y pase las pruebas principales, se crea el tag de backend:
 
 ```bash
 git checkout main
 git pull origin main
-git tag 3.0.0
-git push origin 3.0.0
+git tag -a 4.0.0 -m "Release backend 4.0.0 - Iteración 4"
+git push origin 4.0.0
 ```
 
+Si ya se creó un tag local por error y se necesita corregirlo antes de subirlo:
+
+```bash
+git tag -d 4.0.0
+```
+
+Si el tag remoto ya existe, no se debe sobrescribir sin acuerdo del equipo.
